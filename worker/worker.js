@@ -27,7 +27,7 @@ export default {
     if (!pro && used >= FREE) return j({ error: "limite", used }, 402);
 
     console.log("PlatoScan: imagen recibida chars=" + image.length + " device=" + device);
-    const MODELS = (env.MODELS || "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest").split(",").map(s => s.trim()).filter(Boolean);
+    const MODELS = (env.MODELS || "gemini-2.0-flash,gemini-1.5-flash,gemini-flash-latest,gemini-3.6-flash,gemini-3.7-flash").split(",").map(s => s.trim()).filter(Boolean);
     let r = null, lastErr = "";
     for (const MODEL of MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
@@ -53,7 +53,10 @@ export default {
       let det = ""; try { const ej = await rr.json(); det = (ej && ej.error && (ej.error.message || ej.error.status)) || JSON.stringify(ej); } catch { try { det = await rr.text(); } catch {} }
       lastErr = `${MODEL} -> HTTP ${rr.status}: ${String(det).slice(0, 140)}`;
     }
-    if (!r) return j({ error: "ia_no_disponible", detalle: lastErr.slice(0, 300), probados: MODELS.join(",") }, 502);
+    if (!r) {
+      const saturado = /503|high demand|overloaded|RESOURCE_EXHAUSTED|unavailable/i.test(lastErr);
+      return j({ error: "ia_no_disponible", detalle: saturado ? "La IA está saturada. Intenta de nuevo en 10 segundos." : "No se pudo analizar la foto.", tecnico: lastErr.slice(0, 300), probados: MODELS.join(",") }, 502);
+    }
     const data = await r.json();
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
     let txt = parts.map(p => p.text || "").join("");

@@ -8,4 +8,4 @@ id = "a371c494efde42788c1bb75f9b30a7ca"
 
 [vars]
 ALLOWED_ORIGIN = "https://konfiozinc.github.io"
-MODELS = "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"   # mismos modelos probados del Asesor Konfi
+MODELS = "gemini-2.0-flash,gemini-1.5-flash,gemini-flash-latest,gemini-3.6-flash,gemini-3.7-flash"   # cadena amplia de respaldo
