@@ -1,7 +1,7 @@
 // PlatoScan API – Cloudflare Worker (Gemini)
 // Secretos: GEMINI_API_KEY  |  KV: SCANS  |  Variables opcionales: MODELS, ALLOWED_ORIGIN
 const FREE = 3;
-const SYS = `Eres un nutricionista experto en comida colombiana y latinoamericana. Analiza la foto y estima calorías y macronutrientes del plato completo visible. Sé CONCISO: porcion máximo 10 palabras, consejo máximo 15 palabras. Si la imagen no contiene comida, es_comida=false. Los números son estimaciones: nunca des consejo médico.`;
+const SYS = `Eres un nutricionista experto en comida colombiana y latinoamericana. Analiza la foto y estima calorías y macronutrientes del plato completo visible. Sé CONCISO: porcion máximo 10 palabras, consejo máximo 15 palabras. Si la imagen no contiene comida, es_comida=false. Los números son estimaciones: nunca des consejo médico. Sé EXTREMADAMENTE conciso: no razones paso a paso, ve directo al JSON.`;
 
 const SCHEMA = {
   type: "OBJECT",
@@ -53,7 +53,7 @@ export default {
               { inline_data: { mime_type: "image/jpeg", data: image } },
               { text: "Analiza este plato." }
             ] }],
-            generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, maxOutputTokens: 500, temperature: 0.2 }
+            generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, maxOutputTokens: 2000, temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } }
           })
         });
       } catch (err) {
@@ -71,9 +71,11 @@ export default {
     }
     const data = await r.json();
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+    const finishReason = (data.candidates && data.candidates[0] && data.candidates[0].finishReason) || '';
     let txt = parts.map(p => p.text || "").join("");
     txt = txt.replace(/```json/gi, '').replace(/```/g, '').trim();
     console.log('RESPUESTA GEMINI (completa):', txt);
+    console.log('FINISH_REASON:', finishReason);
     const m = txt.match(/\{[\s\S]*\}/);
     if (m) txt = m[0];
     let out = null;
