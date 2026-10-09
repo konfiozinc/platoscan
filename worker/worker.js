@@ -1,12 +1,23 @@
 // PlatoScan API – Cloudflare Worker (Gemini)
 // Secretos: GEMINI_API_KEY  |  KV: SCANS  |  Variables opcionales: MODELS, ALLOWED_ORIGIN
 const FREE = 3;
-const SYS = `Eres un nutricionista experto en comida colombiana y latinoamericana (bandeja paisa, arepas, sancocho, ajiaco, empanadas, tamales, lechona, mondongo, fritanga, etc.).
-Analiza la foto y estima el contenido nutricional del plato COMPLETO visible, considerando el tamaño de la porción.
-Responde SOLO con un objeto JSON válido, sin texto adicional ni markdown, con esta forma exacta:
-{"es_comida":true,"plato":"nombre en español","porcion":"descripción breve de la porción y gramos aproximados","calorias":0,"proteina_g":0,"carbs_g":0,"grasa_g":0,"puntaje_salud":1-10,"ingredientes":["..."],"consejo":"una recomendación práctica de máximo 20 palabras","confianza":"alta|media|baja"}
-Si la imagen no contiene comida responde {"es_comida":false}. Los números son estimaciones: nunca des consejo médico.
-IMPORTANTE: Devuelve ÚNICAMENTE el objeto JSON crudo, sin bloques de código, sin markdown, sin texto adicional.`;
+const SYS = `Eres un nutricionista experto en comida colombiana y latinoamericana. Analiza la foto y estima calorías y macronutrientes del plato completo visible. Sé CONCISO: porcion máximo 10 palabras, consejo máximo 15 palabras. Si la imagen no contiene comida, es_comida=false. Los números son estimaciones: nunca des consejo médico.`;
+
+const SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    es_comida: { type: "BOOLEAN" },
+    plato: { type: "STRING" },
+    porcion: { type: "STRING" },
+    calorias: { type: "NUMBER" },
+    proteina_g: { type: "NUMBER" },
+    carbs_g: { type: "NUMBER" },
+    grasa_g: { type: "NUMBER" },
+    puntaje_salud: { type: "NUMBER" },
+    consejo: { type: "STRING" }
+  },
+  required: ["es_comida", "plato", "calorias", "proteina_g", "carbs_g", "grasa_g"]
+};
 
 export default {
   async fetch(req, env) {
@@ -27,7 +38,7 @@ export default {
     if (!pro && used >= FREE) return j({ error: "limite", used }, 402);
 
     console.log("PlatoScan: imagen recibida chars=" + image.length + " device=" + device);
-    const MODELS = (env.MODELS || "gemini-2.0-flash,gemini-1.5-flash,gemini-flash-latest,gemini-3.6-flash,gemini-3.7-flash").split(",").map(s => s.trim()).filter(Boolean);
+    const MODELS = (env.MODELS || "gemini-flash-latest,gemini-2.0-flash").split(",").map(s => s.trim()).filter(Boolean);
     let r = null, lastErr = "";
     for (const MODEL of MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
@@ -42,7 +53,7 @@ export default {
               { inline_data: { mime_type: "image/jpeg", data: image } },
               { text: "Analiza este plato." }
             ] }],
-            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1000, temperature: 0.2 }
+            generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, maxOutputTokens: 500, temperature: 0.2 }
           })
         });
       } catch (err) {
@@ -76,8 +87,7 @@ export default {
     const clean = { es_comida: true, plato: String(out.plato || "Plato").slice(0, 80), porcion: String(out.porcion || "").slice(0, 120),
       calorias: n(out.calorias), proteina_g: n(out.proteina_g), carbs_g: n(out.carbs_g), grasa_g: n(out.grasa_g),
       puntaje_salud: Math.min(10, Math.max(1, Math.round(n(out.puntaje_salud) || 5))),
-      ingredientes: (Array.isArray(out.ingredientes) ? out.ingredientes : []).slice(0, 10).map(String),
-      consejo: String(out.consejo || "").slice(0, 160), confianza: String(out.confianza || "media") };
+      consejo: String(out.consejo || "").slice(0, 160) };
     await env.SCANS.put(key, String(used + 1), { expirationTtl: 172800 });
     return j(clean);
   }
