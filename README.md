@@ -5,6 +5,7 @@ Micro-app PWA que estima calorías y macronutrientes de comida colombiana/latina
 ## 🔗 Producción
 - **App (frontend):** https://konfiozinc.github.io/platoscan/
 - **Backend (API):** https://platoscan-api.konfiozinc.workers.dev
+- **Versión Worker (Version ID):** `76bcbabe-dd26-46a6-b9fc-ebbd55d03079`
 
 ## 🏗️ Arquitectura
 ```
@@ -65,11 +66,11 @@ git commit -m "feat: ..." && git push origin main
 3. Los primeros **3 escaneos/día** son gratis; luego aparece el paywall.
 4. Para forzar que los usuarios reciban una versión nueva: cambia `const V='platoscan-vX'` en `sw.js`.
 
-## ✅ Fase 1 (MVP) — estado
+## ✅ Fase 1 (MVP) — estado: **v1.0.0-mvp ESTABLE, en producción**
 - [x] PWA instalable con cámara + galería
 - [x] Worker + Gemini (`responseSchema`) + KV (límite 3/día)
 - [x] CORS, errores visibles, cadena de modelos con fallback, mensaje amigable ante saturación
 - [x] Paywall de demostración (cobro real → Fase 2)
 
 ## 🧭 Fase 2
-Ver `FASE-2.md` (cobro real con Wompi/Mercado Pago, caché KV, multi-proveedor, login).
+Ver `FASE-2-PLAN.md` (roadmap: cobro, caché, login, multi-proveedor, analítica, marketing).
