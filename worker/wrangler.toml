@@ -1,0 +1,11 @@
+name = "platoscan-api"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[[kv_namespaces]]
+binding = "SCANS"
+id = "a371c494efde42788c1bb75f9b30a7ca"
+
+[vars]
+ALLOWED_ORIGIN = "https://konfiozinc.github.io"
+MODELS = "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"   # mismos modelos probados del Asesor Konfi

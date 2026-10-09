@@ -110,10 +110,10 @@ async function scan(file){
   if(!API_URL){await new Promise(z=>setTimeout(z,1400));r=DEMO[Math.floor(Math.random()*DEMO.length)]}
   else{const res=await fetch(API_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:full.split(',')[1],device:S.dev})});
    if(res.status===402){close();S.used=FREE;save();return paywall()}
-   r=await res.json();if(!res.ok)throw new Error(r.error||'error')}
+   r=await res.json();if(!res.ok)throw new Error((r.error||'error')+(r.detalle?(' — '+r.detalle):'')+(r.http?(' [HTTP '+r.http+']'):''))}
   if(r.es_comida===false){sheet(`<h2>No veo comida</h2><p class="mut">Intenta con más luz y el plato completo en la foto.</p><button class="btn" onclick="close()">Entendido</button>`);return}
   S.used++;S.hist.unshift({r,th});S.hist=S.hist.slice(0,10);save();home();result(r,full)
- }catch(e){sheet(`<h2>No pudimos analizar la foto</h2><p class="mut">Revisa tu conexión e intenta de nuevo.</p><button class="btn" onclick="close()">Cerrar</button>`)}
+ }catch(e){sheet(`<h2>No pudimos analizar la foto</h2><p class="mut" style="word-break:break-word">${esc(e.message||e||'Error desconocido')}</p><button class="btn" onclick="close()">Cerrar</button>`)}
 }
 function result(r,img){
  const C=2*Math.PI*50,pct=Math.min(1,r.calorias/2000),sc=Math.max(1,Math.min(10,Math.round(r.puntaje_salud||5))),col=sc>=7?'var(--ok)':sc>=4?'#E0A200':'var(--aji)';
