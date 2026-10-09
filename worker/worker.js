@@ -5,7 +5,8 @@ const SYS = `Eres un nutricionista experto en comida colombiana y latinoamerican
 Analiza la foto y estima el contenido nutricional del plato COMPLETO visible, considerando el tamaño de la porción.
 Responde SOLO con un objeto JSON válido, sin texto adicional ni markdown, con esta forma exacta:
 {"es_comida":true,"plato":"nombre en español","porcion":"descripción breve de la porción y gramos aproximados","calorias":0,"proteina_g":0,"carbs_g":0,"grasa_g":0,"puntaje_salud":1-10,"ingredientes":["..."],"consejo":"una recomendación práctica de máximo 20 palabras","confianza":"alta|media|baja"}
-Si la imagen no contiene comida responde {"es_comida":false}. Los números son estimaciones: nunca des consejo médico.`;
+Si la imagen no contiene comida responde {"es_comida":false}. Los números son estimaciones: nunca des consejo médico.
+IMPORTANTE: Devuelve ÚNICAMENTE el objeto JSON crudo, sin bloques de código, sin markdown, sin texto adicional.`;
 
 export default {
   async fetch(req, env) {
@@ -55,9 +56,13 @@ export default {
     if (!r) return j({ error: "ia_no_disponible", detalle: lastErr.slice(0, 300), probados: MODELS.join(",") }, 502);
     const data = await r.json();
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-    const txt = parts.map(p => p.text || "").join("");
-    const m = txt.match(/\{[\s\S]*\}/);
-    let out; try { out = JSON.parse(m ? m[0] : txt); } catch { return j({ error: "respuesta_invalida" }, 502); }
+    let txt = parts.map(p => p.text || "").join("");
+    txt = txt.replace(/```json/gi, '').replace(/```/g, '').trim();
+    console.log('RESPUESTA GEMINI:', txt.slice(0, 600));
+    let out = null;
+    try { out = JSON.parse(txt); } catch {}
+    if (!out) { const m = txt.match(/\{[\s\S]*\}/); if (m) { try { out = JSON.parse(m[0]); } catch {} } }
+    if (!out) return j({ error: "respuesta_invalida", detalle: txt.slice(0, 200) }, 502);
     if (out.es_comida === false) return j({ es_comida: false });
 
     const n = (v) => Math.max(0, Number(v) || 0);
