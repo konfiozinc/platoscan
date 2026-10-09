@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#1B2340">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PlatoScan">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>PlatoScan – calorías de tu plato con una foto</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F4F6FB;--card:#fff;--ink:#1B2340;--mut:#68718F;--line:#DDE2F0;--maiz:#FFC83D;--aji:#E8503A;--ok:#2E9E6B;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12172B;--card:#1C2340;--ink:#EEF1FB;--mut:#9AA3C4;--line:#2D365C}}
+:root[data-theme="dark"]{--bg:#12172B;--card:#1C2340;--ink:#EEF1FB;--mut:#9AA3C4;--line:#2D365C}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 'DM Sans',system-ui,sans-serif}
+h1,h2,.big{font-family:'Baloo 2',system-ui,sans-serif;margin:0}
+#app{max-width:440px;margin:0 auto;padding:18px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+header h1{font-size:28px;font-weight:800}
+.pill{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-weight:700;font-size:14px}
+.hero{background:var(--ink);color:#fff;border-radius:26px;padding:26px 20px;text-align:center}
+.hero h2{font-size:26px;font-weight:800;line-height:1.15}
+.hero p{color:#c9d0ee;margin:8px 0 18px}
+.cam{width:100%;border:0;border-radius:18px;padding:18px;background:var(--maiz);color:#2b2100;font:800 19px 'Baloo 2',sans-serif;cursor:pointer}
+.cam:focus-visible,.btn:focus-visible,button:focus-visible{outline:3px solid var(--aji);outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-top:14px}
+.mut{color:var(--mut);font-size:14px}
+.h{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;color:var(--ink);font:inherit}
+.h:last-child{border-bottom:0}
+.h img{width:48px;height:48px;border-radius:12px;object-fit:cover;background:var(--line)}
+.h b{display:block}.h .k{margin-left:auto;font-weight:700}
+.ov{position:fixed;inset:0;background:rgba(10,14,30,.6);display:flex;align-items:flex-end;justify-content:center;z-index:5}
+.sheet{background:var(--bg);width:100%;max-width:440px;max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom,0px))}
+.photo{width:100%;height:170px;object-fit:cover;border-radius:18px;margin-bottom:12px}
+.ringw{display:flex;align-items:center;gap:16px}
+.ringw svg{width:120px;height:120px;flex:none}
+.m{margin:10px 0}.m .t{display:flex;justify-content:space-between;font-weight:700;font-size:14px}
+.bar{height:9px;background:var(--line);border-radius:9px;overflow:hidden;margin-top:4px}.bar i{display:block;height:100%;border-radius:9px}
+.btn{width:100%;border:0;border-radius:16px;padding:15px;font:700 17px 'DM Sans',sans-serif;background:var(--ink);color:var(--bg);cursor:pointer;margin-top:12px}
+.btn.maiz{background:var(--maiz);color:#2b2100}.btn.gh{background:transparent;border:1.5px solid var(--line);color:var(--mut)}
+.score{display:inline-block;padding:3px 12px;border-radius:99px;font-weight:800;color:#fff}
+ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;position:relative}ul.f li:before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:800}
+.spin{width:44px;height:44px;border:5px solid var(--line);border-top-color:var(--aji);border-radius:50%;animation:s 1s linear infinite;margin:30px auto}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+</style></head>
+<body><div id="app"></div><div id="ov"></div>
+<input type="file" id="f" accept="image/*" capture="environment" hidden>
+<script>
+/* ===== CONFIG ===== */
+const API_URL='https://platoscan-api.konfiozinc.workers.dev';           // Worker de PlatoScan (Gemini)
+const FREE=3;               // escaneos gratis por día
+/* ================== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>new Date().toISOString().slice(0,10);
+let S={dev:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now()),pro:false,day:today(),used:0,hist:[]};
+try{const x=JSON.parse(localStorage.getItem('ps')||'null');if(x)S=Object.assign(S,x)}catch(e){}
+if(S.day!==today()){S.day=today();S.used=0}
+const save=()=>{try{localStorage.setItem('ps',JSON.stringify(S))}catch(e){}};
+const left=()=>S.pro?'∞':Math.max(0,FREE-S.used);
+function home(){
+ $('#app').innerHTML=`<header><h1>PlatoScan</h1><span class="pill">${S.pro?'Pro':'Escaneos hoy: '+left()}</span></header>
+ <div class="hero"><h2>Una foto. Las calorías de tu plato.</h2><p>Pensado para bandeja paisa, arepas, sancocho y más comida latina.</p>
+ <button class="cam" id="go">📷 Escanear mi plato</button></div>
+ <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${h.th||''}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="mut" style="margin-top:6px">Todavía no has escaneado nada. Toma tu primera foto.</div>'}</div>
+ <p class="mut" style="text-align:center">Valores estimados. No reemplazan la consulta con un nutricionista.</p>`;
+ $('#go').onclick=()=>{if(!S.pro&&S.used>=FREE)return paywall();$('#f').click()};
+ document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const h=S.hist[+b.dataset.i];result(h.r,h.th)});
+}
+function close(){$('#ov').innerHTML=''}
+function sheet(h){$('#ov').innerHTML=`<div class="ov" onclick="if(event.target===this)close()"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`}
+function compress(file){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const M=768,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);const full=c.toDataURL('image/jpeg',.7);const t=document.createElement('canvas');t.width=t.height=96;const x=t.getContext('2d'),s=Math.min(im.width,im.height);x.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,96,96);URL.revokeObjectURL(u);ok({full,th:t.toDataURL('image/jpeg',.6)})};im.onerror=no;im.src=u})}
+const DEMO=[{plato:'Bandeja paisa',porcion:'1 plato grande (~600 g)',calorias:1150,proteina_g:62,carbs_g:98,grasa_g:58,puntaje_salud:3,ingredientes:['frijoles','arroz','chicharrón','carne molida','huevo','plátano maduro','arepa'],consejo:'Comparte el plato o quita el chicharrón para bajar unas 300 kcal.'},{plato:'Arepa con queso',porcion:'1 arepa mediana',calorias:380,proteina_g:14,carbs_g:48,grasa_g:15,puntaje_salud:6,ingredientes:['arepa de maíz','queso'],consejo:'Acompáñala con huevo o fruta para una comida más completa.'},{plato:'Sancocho de gallina',porcion:'1 plato hondo',calorias:520,proteina_g:34,carbs_g:52,grasa_g:19,puntaje_salud:7,ingredientes:['gallina','yuca','papa','plátano verde','mazorca'],consejo:'Buena fuente de proteína. Controla la porción de yuca y papa.'}];
+async function scan(file){
+ sheet('<div class="spin" role="status" aria-label="Analizando"></div><p style="text-align:center"><b>Analizando tu plato…</b></p>');
+ try{
+  const {full,th}=await compress(file);let r;
+  if(!API_URL){await new Promise(z=>setTimeout(z,1400));r=DEMO[Math.floor(Math.random()*DEMO.length)]}
+  else{const res=await fetch(API_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:full.split(',')[1],device:S.dev})});
+   if(res.status===402){close();S.used=FREE;save();return paywall()}
+   r=await res.json();if(!res.ok)throw new Error(r.error||'error')}
+  if(r.es_comida===false){sheet(`<h2>No veo comida</h2><p class="mut">Intenta con más luz y el plato completo en la foto.</p><button class="btn" onclick="close()">Entendido</button>`);return}
+  S.used++;S.hist.unshift({r,th});S.hist=S.hist.slice(0,10);save();home();result(r,full)
+ }catch(e){sheet(`<h2>No pudimos analizar la foto</h2><p class="mut">Revisa tu conexión e intenta de nuevo.</p><button class="btn" onclick="close()">Cerrar</button>`)}
+}
+function result(r,img){
+ const C=2*Math.PI*50,pct=Math.min(1,r.calorias/2000),sc=Math.max(1,Math.min(10,Math.round(r.puntaje_salud||5))),col=sc>=7?'var(--ok)':sc>=4?'#E0A200':'var(--aji)';
+ const tot=(r.proteina_g+r.carbs_g+r.grasa_g)||1;
+ const mac=(n,v,c)=>`<div class="m"><div class="t"><span>${n}</span><span>${Math.round(v)} g</span></div><div class="bar"><i style="width:${Math.round(v/tot*100)}%;background:${c}"></i></div></div>`;
+ sheet(`${img?`<img class="photo" src="${img}" alt="Tu plato">`:''}<h2 style="font-size:26px">${esc(r.plato)}</h2><div class="mut">${esc(r.porcion||'')}</div>
+ <div class="ringw card"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--line)" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="var(--aji)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 60 60)"/></svg>
+ <div><div class="big" style="font-size:38px;font-weight:800">${Math.round(r.calorias)}</div><div class="mut">kcal · ${Math.round(pct*100)}% de 2.000 kcal diarias</div></div></div>
+ <div class="card">${mac('Proteína',r.proteina_g,'var(--ok)')}${mac('Carbohidratos',r.carbs_g,'var(--maiz)')}${mac('Grasa',r.grasa_g,'var(--aji)')}</div>
+ <div class="card"><span class="score" style="background:${col}">Salud ${sc}/10</span><p style="margin:10px 0 0">${esc(r.consejo||'')}</p>${(r.ingredientes||[]).length?`<p class="mut">Detectado: ${(r.ingredientes||[]).map(esc).join(', ')}</p>`:''}</div>
+ <p class="mut">Estimación aproximada. No reemplaza a un nutricionista.</p><button class="btn" onclick="close()">Listo</button>`)}
+function paywall(){sheet(`<h2 style="font-size:26px">Llegaste a tu límite de hoy</h2><p class="mut">Con Pro escaneas sin límite y llevas tu historial completo.</p>
+ <div class="card"><div class="big" style="font-size:36px;font-weight:800">$19.900 <span class="mut" style="font-size:15px;font-family:'DM Sans'">COP / mes</span></div><div class="mut">o $119.900 COP al año (ahorras 50%)</div>
+ <ul class="f"><li>Escaneos ilimitados</li><li>Historial completo y metas diarias</li><li>Resumen semanal de macros</li></ul></div>
+ <button class="btn maiz" id="pro">Probar 7 días gratis</button><button class="btn gh" onclick="close()">Volver mañana</button>
+ <p class="mut">Prototipo: aquí se conecta Wompi o Mercado Pago.</p>`);$('#pro').onclick=()=>{S.pro=true;save();close();home()}}
+$('#f').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)scan(f)};
+home();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script></body></html>
