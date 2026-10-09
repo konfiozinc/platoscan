@@ -55,7 +55,8 @@ export default {
     }
     if (!r) {
       const saturado = /503|high demand|overloaded|RESOURCE_EXHAUSTED|unavailable/i.test(lastErr);
-      return j({ error: "ia_no_disponible", detalle: saturado ? "La IA está saturada. Intenta de nuevo en 10 segundos." : "No se pudo analizar la foto.", tecnico: lastErr.slice(0, 300), probados: MODELS.join(",") }, 502);
+      const detalle = saturado ? "La IA está saturada. Intenta de nuevo en 10 segundos." : lastErr.slice(0, 300);
+      return j({ error: "ia_no_disponible", detalle, probados: MODELS.join(",") }, 502);
     }
     const data = await r.json();
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
