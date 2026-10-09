@@ -42,7 +42,7 @@ export default {
               { inline_data: { mime_type: "image/jpeg", data: image } },
               { text: "Analiza este plato." }
             ] }],
-            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 700, temperature: 0.2 }
+            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1000, temperature: 0.2 }
           })
         });
       } catch (err) {
@@ -62,11 +62,14 @@ export default {
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
     let txt = parts.map(p => p.text || "").join("");
     txt = txt.replace(/```json/gi, '').replace(/```/g, '').trim();
-    console.log('RESPUESTA GEMINI:', txt.slice(0, 600));
+    console.log('RESPUESTA GEMINI (completa):', txt);
+    const m = txt.match(/\{[\s\S]*\}/);
+    if (m) txt = m[0];
     let out = null;
     try { out = JSON.parse(txt); } catch {}
-    if (!out) { const m = txt.match(/\{[\s\S]*\}/); if (m) { try { out = JSON.parse(m[0]); } catch {} } }
-    if (!out) return j({ error: "respuesta_invalida", detalle: txt.slice(0, 200) }, 502);
+    if (!out) { try { out = JSON.parse(txt.replace(/,\s*([}\]])/g, '$1')); } catch {} }
+    if (!out && !m) { try { out = JSON.parse(txt.replace(/,\s*$/, '') + '"}'); } catch {} }
+    if (!out) return j({ error: "respuesta_invalida", detalle: txt.slice(0, 400) }, 502);
     if (out.es_comida === false) return j({ es_comida: false });
 
     const n = (v) => Math.max(0, Number(v) || 0);
