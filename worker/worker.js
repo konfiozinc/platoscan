@@ -25,22 +25,29 @@ export default {
     const used = parseInt((await env.SCANS.get(key)) || "0", 10);
     if (!pro && used >= FREE) return j({ error: "limite", used }, 402);
 
+    console.log("PlatoScan: imagen recibida chars=" + image.length + " device=" + device);
     const MODELS = (env.MODELS || "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest").split(",").map(s => s.trim()).filter(Boolean);
     let r = null, lastErr = "";
     for (const MODEL of MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
-      const rr = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYS }] },
-          contents: [{ role: "user", parts: [
-            { inline_data: { mime_type: "image/jpeg", data: image } },
-            { text: "Analiza este plato." }
-          ] }],
-          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 700, temperature: 0.2 }
-        })
-      });
+      let rr;
+      try {
+        rr = await fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYS }] },
+            contents: [{ role: "user", parts: [
+              { inline_data: { mime_type: "image/jpeg", data: image } },
+              { text: "Analiza este plato." }
+            ] }],
+            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 700, temperature: 0.2 }
+          })
+        });
+      } catch (err) {
+        lastErr = `${MODEL} -> fetch error: ${(err && err.message) || err}`;
+        continue;
+      }
       if (rr.ok) { r = rr; break; }
       let det = ""; try { const ej = await rr.json(); det = (ej && ej.error && (ej.error.message || ej.error.status)) || JSON.stringify(ej); } catch { try { det = await rr.text(); } catch {} }
       lastErr = `${MODEL} -> HTTP ${rr.status}: ${String(det).slice(0, 140)}`;
