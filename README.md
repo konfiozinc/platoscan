@@ -14,7 +14,7 @@ Celular (PWA)
 Cloudflare Worker (platoscan-api)
    │  imagen + prompt + responseSchema (JSON garantizado)
    ▼
-Gemini (gemini-flash-latest → gemini-2.0-flash, con fallback)
+Gemini (gemini-3.8-flash → gemini-flash-latest → gemini-3.7/3.6-flash, con fallback)
    │  JSON estructurado
    ▼
 Worker → limpia/valida JSON → KV SCANS (límite 3 escaneos/día)
@@ -35,6 +35,14 @@ App muestra: calorías, macros, puntaje de salud y consejo
 ## 🔐 Secretos (en Cloudflare, NUNCA en código)
 - `GEMINI_API_KEY` — clave de Google AI Studio.
 - KV namespace `SCANS` (el `id` real está en `wrangler.toml`).
+
+## 🧠 Modelos Gemini (actualizados)
+Cadena actual (variable `MODELS` en `wrangler.toml`):
+```
+gemini-3.8-flash, gemini-flash-latest, gemini-3.7-flash, gemini-3.6-flash
+```
+- Google depreca modelos seguido: la línea 2.x (`gemini-2.0-flash`, `gemini-2.5-flash`) ya devuelve **404**.
+- El error de Google indica el modelo recomendado (p.ej. *"use models/gemini-3.8-flash"*); actualiza `MODELS` con ese nombre.
 
 ## 🚀 Desplegar el backend
 ```bash

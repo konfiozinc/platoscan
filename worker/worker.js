@@ -38,7 +38,7 @@ export default {
     if (!pro && used >= FREE) return j({ error: "limite", used }, 402);
 
     console.log("PlatoScan: imagen recibida chars=" + image.length + " device=" + device);
-    const MODELS = (env.MODELS || "gemini-flash-latest,gemini-2.0-flash").split(",").map(s => s.trim()).filter(Boolean);
+    const MODELS = (env.MODELS || "gemini-3.8-flash,gemini-flash-latest,gemini-3.7-flash,gemini-3.6-flash").split(",").map(s => s.trim()).filter(Boolean);
     let r = null, lastErr = "";
     for (const MODEL of MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
