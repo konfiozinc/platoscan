@@ -47,7 +47,7 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
 </style></head>
 <body><div id="app"></div><div id="ov"></div>
-<input type="file" id="f" accept="image/*" capture="environment" hidden>
+<input type="file" id="f" accept="image/*" hidden>
 <script>
 /* ===== CONFIG ===== */
 const API_URL='https://platoscan-api.konfiozinc.workers.dev';           // Worker de PlatoScan (Gemini)
@@ -67,11 +67,40 @@ function home(){
  <button class="cam" id="go">📷 Escanear mi plato</button></div>
  <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${h.th||''}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="mut" style="margin-top:6px">Todavía no has escaneado nada. Toma tu primera foto.</div>'}</div>
  <p class="mut" style="text-align:center">Valores estimados. No reemplazan la consulta con un nutricionista.</p>`;
- $('#go').onclick=()=>{if(!S.pro&&S.used>=FREE)return paywall();$('#f').click()};
+ $('#go').onclick=openCam;
  document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const h=S.hist[+b.dataset.i];result(h.r,h.th)});
 }
-function close(){$('#ov').innerHTML=''}
+let camStream=null;
+function close(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('#ov').innerHTML=''}
 function sheet(h){$('#ov').innerHTML=`<div class="ov" onclick="if(event.target===this)close()"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`}
+function openCam(){
+ if(!S.pro&&S.used>=FREE)return paywall();
+ sheet(`<h2 style="font-size:24px">Escanea tu plato</h2>
+ <button class="btn maiz" id="usecam">📷 Tomar foto</button>
+ <button class="btn gh" id="usefile">🖼️ Subir de galería</button>
+ <button class="btn gh" onclick="close()">Cancelar</button>`);
+ $('#usecam').onclick=startCam;
+ $('#usefile').onclick=()=>$('#f').click();
+}
+async function startCam(){
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+  return sheet(`<h2>Cámara no disponible</h2><p class="mut">Este navegador no permite usar la cámara aquí. Usa "Subir de galería".</p><button class="btn" onclick="openCam()">Volver</button>`);
+ }
+ let s;
+ try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})}
+ catch(err){console.log('getUserMedia error:',err);return sheet(`<h2>No pudimos acceder a la cámara</h2><p class="mut">Revisa los permisos de cámara del navegador, o usa "Subir de galería".</p><button class="btn" onclick="openCam()">Volver</button>`)}
+ camStream=s;
+ sheet(`<div style="overflow:hidden;border-radius:18px;background:#000"><video id="vp" autoplay playsinline muted style="width:100%;height:56vh;object-fit:cover;display:block"></video></div>
+ <p class="mut" style="text-align:center">Encuadra el plato completo y captura.</p>
+ <div style="display:flex;gap:10px;margin-top:6px"><button class="btn gh" onclick="close()">Cancelar</button><button class="btn maiz" id="shoot">📸 Capturar</button></div>`);
+ const vp=$('#vp');vp.srcObject=camStream;vp.play().catch(()=>{});
+ $('#shoot').onclick=()=>{
+  const c=document.createElement('canvas');c.width=vp.videoWidth||1280;c.height=vp.videoHeight||720;
+  c.getContext('2d').drawImage(vp,0,0,c.width,c.height);
+  close();
+  c.toBlob(b=>{if(!b)return sheet(`<h2>No pudimos capturar la foto</h2><button class="btn" onclick="openCam()">Reintentar</button>`);scan(new File([b],'captura.jpg',{type:'image/jpeg'}))},'image/jpeg',0.9);
+ };
+}
 function compress(file){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const M=768,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);const full=c.toDataURL('image/jpeg',.7);const t=document.createElement('canvas');t.width=t.height=96;const x=t.getContext('2d'),s=Math.min(im.width,im.height);x.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,96,96);URL.revokeObjectURL(u);ok({full,th:t.toDataURL('image/jpeg',.6)})};im.onerror=no;im.src=u})}
 const DEMO=[{plato:'Bandeja paisa',porcion:'1 plato grande (~600 g)',calorias:1150,proteina_g:62,carbs_g:98,grasa_g:58,puntaje_salud:3,ingredientes:['frijoles','arroz','chicharrón','carne molida','huevo','plátano maduro','arepa'],consejo:'Comparte el plato o quita el chicharrón para bajar unas 300 kcal.'},{plato:'Arepa con queso',porcion:'1 arepa mediana',calorias:380,proteina_g:14,carbs_g:48,grasa_g:15,puntaje_salud:6,ingredientes:['arepa de maíz','queso'],consejo:'Acompáñala con huevo o fruta para una comida más completa.'},{plato:'Sancocho de gallina',porcion:'1 plato hondo',calorias:520,proteina_g:34,carbs_g:52,grasa_g:19,puntaje_salud:7,ingredientes:['gallina','yuca','papa','plátano verde','mazorca'],consejo:'Buena fuente de proteína. Controla la porción de yuca y papa.'}];
 async function scan(file){
@@ -101,7 +130,7 @@ function paywall(){sheet(`<h2 style="font-size:26px">Llegaste a tu límite de ho
  <ul class="f"><li>Escaneos ilimitados</li><li>Historial completo y metas diarias</li><li>Resumen semanal de macros</li></ul></div>
  <button class="btn maiz" id="pro">Probar 7 días gratis</button><button class="btn gh" onclick="close()">Volver mañana</button>
  <p class="mut">Prototipo: aquí se conecta Wompi o Mercado Pago.</p>`);$('#pro').onclick=()=>{S.pro=true;save();close();home()}}
-$('#f').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)scan(f)};
+$('#f').onchange=e=>{console.log('file.onchange disparado, archivos:',e.target.files&&e.target.files.length);const f=e.target.files[0];e.target.value='';if(f)scan(f)};
 home();
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
