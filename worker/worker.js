@@ -30,8 +30,11 @@ export default {
     if (req.method !== "POST") return j({ error: "método no permitido" }, 405);
 
     let b; try { b = await req.json(); } catch { return j({ error: "json inválido" }, 400); }
-    const { image, device } = b;
-    if (!image || typeof image !== "string" || image.length > 1500000 || typeof device !== "string" || device.length < 1 || device.length > 128) return j({ error: "datos inválidos" }, 400);
+    const { image, device, uid } = b;
+    // Identidad: se prefiere el `uid` autenticado de Firebase; si no llega, se
+    // usa `device` como retrocompatible (modo offline / sin Firebase).
+    const id = (typeof uid === "string" && uid.length >= 1 && uid.length <= 128) ? uid : device;
+    if (!image || typeof image !== "string" || image.length > 1500000 || typeof id !== "string" || id.length < 1 || id.length > 128) return j({ error: "datos inválidos" }, 400);
 
     const day = new Date().toISOString().slice(0, 10);
 
@@ -48,8 +51,8 @@ export default {
     }
     await env.SCANS.put(ipKey, String(ipUsed + 1), { expirationTtl: 172800 });
 
-    const key = `n:${device}:${day}`;
-    const pro = await env.SCANS.get(`pro:${device}`);
+    const key = `n:${id}:${day}`;
+    const pro = await env.SCANS.get(`pro:${id}`);
     const used = parseInt((await env.SCANS.get(key)) || "0", 10);
     if (!pro && used >= FREE) return j({ error: "limite", used }, 402);
 

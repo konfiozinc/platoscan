@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://platoscan-api.konfiozinc.workers.dev; media-src blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://platoscan-api.konfiozinc.workers.dev https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; frame-src https://platoscan-3249f.firebaseapp.com; media-src blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="manifest" href="./manifest.webmanifest">
@@ -12,6 +12,9 @@
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <title>PlatoScan – calorías de tu plato con una foto</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- Firebase Auth (build compat; este bloque es clasico y usa onclick= inline, por eso no se usan modulos ES6) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <style>
 :root{--bg:#F4F6FB;--card:#fff;--ink:#1B2340;--mut:#68718F;--line:#DDE2F0;--maiz:#FFC83D;--aji:#E8503A;--ok:#2E9E6B;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12172B;--card:#1C2340;--ink:#EEF1FB;--mut:#9AA3C4;--line:#2D365C}}
@@ -55,6 +58,10 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 /* ===== CONFIG ===== */
 const API_URL='https://platoscan-api.konfiozinc.workers.dev';           // Worker de PlatoScan (Gemini)
 const FREE=3;               // escaneos gratis por día
+// Firebase Auth (anónimo). La apiKey NO es un secreto: es el identificador
+// público de la app; la seguridad de Firebase está en las reglas, no en la key.
+const FIREBASE_CONFIG={apiKey:"AIzaSyBE43yFtrnEjx79o9cVcthIN79deSE6ew4",authDomain:"platoscan-3249f.firebaseapp.com",projectId:"platoscan-3249f",storageBucket:"platoscan-3249f.firebasestorage.app",messagingSenderId:"587218545630",appId:"1:587218545630:web:1358a99f35d13fba830b4f"};
+let UID=null;               // uid anónimo de Firebase = identidad real. null = fallback con device
 /* ================== */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -115,7 +122,7 @@ async function scan(file){
  try{
   const {full,th}=await compress(file);let r;
   if(!API_URL){await new Promise(z=>setTimeout(z,1400));r=DEMO[Math.floor(Math.random()*DEMO.length)]}
-  else{const res=await fetch(API_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:full.split(',')[1],device:S.dev})});
+  else{const res=await fetch(API_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:full.split(',')[1],uid:UID,device:S.dev})});
    if(res.status===402){cerrarSheet();S.used=FREE;save();return paywall()}
    r=await res.json();if(!res.ok)throw new Error((r.error||'error')+(r.detalle?(' — '+r.detalle):'')+(r.http?(' [HTTP '+r.http+']'):''))}
   if(r.es_comida===false){sheet(`<h2>No veo comida</h2><p class="mut">Intenta con más luz y el plato completo en la foto.</p><button class="btn" onclick="cerrarSheet()">Entendido</button>`);return}
@@ -138,6 +145,17 @@ function paywall(){sheet(`<h2 style="font-size:26px">Llegaste a tu límite de ho
  <button class="btn maiz" id="pro">Probar 7 días gratis</button><button class="btn gh" onclick="cerrarSheet()">Volver mañana</button>
  <p class="mut">Prototipo: aquí se conecta Wompi o Mercado Pago.</p>`);$('#pro').onclick=()=>{S.pro=true;save();cerrarSheet();home()}}
 $('#f').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)scan(f)};
+// Inicializa Firebase y obtiene un uid anónimo. Si Firebase no carga (offline o
+// bloqueado por red/CSP), la app sigue funcionando con `device` local como fallback.
+(function iniciarAuth(){
+  if(typeof firebase==='undefined'||!firebase.apps){console.warn('PlatoScan: Firebase SDK no cargado (modo fallback)');return}
+  try{
+    if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+    firebase.auth().signInAnonymously()
+      .then(uc=>{UID=uc.user.uid;console.log('PlatoScan: uid anonimo =',UID)})
+      .catch(e=>console.warn('PlatoScan: signInAnonymously fallo:',e&&e.message));
+  }catch(e){console.warn('PlatoScan: Firebase fallo (modo fallback):',e&&e.message)}
+})();
 home();
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
