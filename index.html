@@ -107,7 +107,10 @@ async function startCam(){
 }
 function compress(file){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const M=768,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);const full=c.toDataURL('image/jpeg',.7);const t=document.createElement('canvas');t.width=t.height=96;const x=t.getContext('2d'),s=Math.min(im.width,im.height);x.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,96,96);URL.revokeObjectURL(u);ok({full,th:t.toDataURL('image/jpeg',.6)})};im.onerror=no;im.src=u})}
 const DEMO=[{plato:'Bandeja paisa',porcion:'1 plato grande (~600 g)',calorias:1150,proteina_g:62,carbs_g:98,grasa_g:58,puntaje_salud:3,ingredientes:['frijoles','arroz','chicharrón','carne molida','huevo','plátano maduro','arepa'],consejo:'Comparte el plato o quita el chicharrón para bajar unas 300 kcal.'},{plato:'Arepa con queso',porcion:'1 arepa mediana',calorias:380,proteina_g:14,carbs_g:48,grasa_g:15,puntaje_salud:6,ingredientes:['arepa de maíz','queso'],consejo:'Acompáñala con huevo o fruta para una comida más completa.'},{plato:'Sancocho de gallina',porcion:'1 plato hondo',calorias:520,proteina_g:34,carbs_g:52,grasa_g:19,puntaje_salud:7,ingredientes:['gallina','yuca','papa','plátano verde','mazorca'],consejo:'Buena fuente de proteína. Controla la porción de yuca y papa.'}];
+let lastScanAt=0;
 async function scan(file){
+ if(Date.now()-lastScanAt<5000){return sheet(`<h2>Espera un momento</h2><p class="mut">Solo se permite un escaneo cada 5 segundos.</p><button class="btn" onclick="cerrarSheet()">Entendido</button>`)}
+ lastScanAt=Date.now();
  sheet('<div class="spin" role="status" aria-label="Analizando"></div><p style="text-align:center"><b>Analizando tu plato…</b></p>');
  try{
   const {full,th}=await compress(file);let r;

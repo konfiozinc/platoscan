@@ -1,6 +1,7 @@
 // PlatoScan API – Cloudflare Worker (Gemini)
 // Secretos: GEMINI_API_KEY  |  KV: SCANS  |  Variables opcionales: MODELS, ALLOWED_ORIGIN
 const FREE = 3;
+const IP_MAX = 100; // escaneos/dia por IP: frena el abuso de costo aunque roten el `device`
 const SYS = `Eres un nutricionista experto en comida colombiana y latinoamericana. Analiza la foto y estima calorías y macronutrientes del plato completo visible. Sé CONCISO: porcion máximo 10 palabras, consejo máximo 15 palabras. Si la imagen no contiene comida, es_comida=false. Los números son estimaciones: nunca des consejo médico. Sé EXTREMADAMENTE conciso: no razones paso a paso, ve directo al JSON.`;
 
 const SCHEMA = {
@@ -33,6 +34,20 @@ export default {
     if (!image || typeof image !== "string" || image.length > 1500000 || typeof device !== "string" || device.length < 1 || device.length > 128) return j({ error: "datos inválidos" }, 400);
 
     const day = new Date().toISOString().slice(0, 10);
+
+    // Rate limit por IP (anti-abuso, independiente del `device` que envía el cliente).
+    // Cloudflare expone la IP real del visitante en CF-Connecting-IP. Un bot puede
+    // rotar `device` infinitamente, pero no su IP: este tope diario frena el abuso
+    // de costo de Gemini aunque el freemium se salte. Es una capa TEMPORAL hasta
+    // que la identidad sea autenticada (Firebase Auth).
+    const ip = String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 45);
+    const ipKey = `ip:${ip}:${day}`;
+    const ipUsed = parseInt((await env.SCANS.get(ipKey)) || "0", 10);
+    if (ipUsed >= IP_MAX) {
+      return j({ error: "limite_ip", detalle: "Demasiados escaneos desde esta red hoy. Intenta mañana." }, 429);
+    }
+    await env.SCANS.put(ipKey, String(ipUsed + 1), { expirationTtl: 172800 });
+
     const key = `n:${device}:${day}`;
     const pro = await env.SCANS.get(`pro:${device}`);
     const used = parseInt((await env.SCANS.get(key)) || "0", 10);
