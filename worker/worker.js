@@ -13,6 +13,7 @@ const SCHEMA = {
     proteina_g: { type: "NUMBER" },
     carbs_g: { type: "NUMBER" },
     grasa_g: { type: "NUMBER" },
+    ingredientes: { type: "ARRAY", items: { type: "STRING" } },
     puntaje_salud: { type: "NUMBER" },
     consejo: { type: "STRING" }
   },
@@ -29,7 +30,7 @@ export default {
 
     let b; try { b = await req.json(); } catch { return j({ error: "json inválido" }, 400); }
     const { image, device } = b;
-    if (!image || !device || typeof image !== "string" || image.length > 1500000) return j({ error: "datos inválidos" }, 400);
+    if (!image || typeof image !== "string" || image.length > 1500000 || typeof device !== "string" || device.length < 1 || device.length > 128) return j({ error: "datos inválidos" }, 400);
 
     const day = new Date().toISOString().slice(0, 10);
     const key = `n:${device}:${day}`;
@@ -37,7 +38,7 @@ export default {
     const used = parseInt((await env.SCANS.get(key)) || "0", 10);
     if (!pro && used >= FREE) return j({ error: "limite", used }, 402);
 
-    console.log("PlatoScan: imagen recibida chars=" + image.length + " device=" + device);
+    console.log("PlatoScan: imagen recibida chars=" + image.length);
     const MODELS = (env.MODELS || "gemini-3.8-flash,gemini-flash-latest,gemini-3.7-flash,gemini-3.6-flash").split(",").map(s => s.trim()).filter(Boolean);
     let r = null, lastErr = "";
     for (const MODEL of MODELS) {
@@ -71,11 +72,8 @@ export default {
     }
     const data = await r.json();
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-    const finishReason = (data.candidates && data.candidates[0] && data.candidates[0].finishReason) || '';
     let txt = parts.map(p => p.text || "").join("");
     txt = txt.replace(/```json/gi, '').replace(/```/g, '').trim();
-    console.log('RESPUESTA GEMINI (completa):', txt);
-    console.log('FINISH_REASON:', finishReason);
     const m = txt.match(/\{[\s\S]*\}/);
     if (m) txt = m[0];
     let out = null;
@@ -89,6 +87,7 @@ export default {
     const clean = { es_comida: true, plato: String(out.plato || "Plato").slice(0, 80), porcion: String(out.porcion || "").slice(0, 120),
       calorias: n(out.calorias), proteina_g: n(out.proteina_g), carbs_g: n(out.carbs_g), grasa_g: n(out.grasa_g),
       puntaje_salud: Math.min(10, Math.max(1, Math.round(n(out.puntaje_salud) || 5))),
+      ingredientes: Array.isArray(out.ingredientes) ? out.ingredientes.map(x => String(x || "").slice(0, 40)).filter(Boolean).slice(0, 12) : [],
       consejo: String(out.consejo || "").slice(0, 160) };
     await env.SCANS.put(key, String(used + 1), { expirationTtl: 172800 });
     return j(clean);

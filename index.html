@@ -1,6 +1,9 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://platoscan-api.konfiozinc.workers.dev; media-src blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="manifest" href="./manifest.webmanifest">
 <meta name="theme-color" content="#1B2340">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -55,6 +58,7 @@ const FREE=3;               // escaneos gratis por día
 /* ================== */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeTh=t=>String(t??'').startsWith('data:image/')?t:'';   // la miniatura vive en localStorage (origin compartido): solo data:image, nunca código
 const today=()=>new Date().toISOString().slice(0,10);
 let S={dev:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now()),pro:false,day:today(),used:0,hist:[]};
 try{const x=JSON.parse(localStorage.getItem('ps')||'null');if(x)S=Object.assign(S,x)}catch(e){}
@@ -65,7 +69,7 @@ function home(){
  $('#app').innerHTML=`<header><h1>PlatoScan</h1><span class="pill">${S.pro?'Pro':'Escaneos hoy: '+left()}</span></header>
  <div class="hero"><h2>Una foto. Las calorías de tu plato.</h2><p>Pensado para bandeja paisa, arepas, sancocho y más comida latina.</p>
  <button class="cam" id="go">📷 Escanear mi plato</button></div>
- <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${h.th||''}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="mut" style="margin-top:6px">Todavía no has escaneado nada. Toma tu primera foto.</div>'}</div>
+ <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${esc(safeTh(h.th))}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="mut" style="margin-top:6px">Todavía no has escaneado nada. Toma tu primera foto.</div>'}</div>
  <p class="mut" style="text-align:center">Valores estimados. No reemplazan la consulta con un nutricionista.</p>`;
  $('#go').onclick=openCam;
  document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const h=S.hist[+b.dataset.i];result(h.r,h.th)});
@@ -88,7 +92,7 @@ async function startCam(){
  }
  let s;
  try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})}
- catch(err){console.log('getUserMedia error:',err);return sheet(`<h2>No pudimos acceder a la cámara</h2><p class="mut">Revisa los permisos de cámara del navegador, o usa "Subir de galería".</p><button class="btn" onclick="openCam()">Volver</button>`)}
+ catch(err){return sheet(`<h2>No pudimos acceder a la cámara</h2><p class="mut">Revisa los permisos de cámara del navegador, o usa "Subir de galería".</p><button class="btn" onclick="openCam()">Volver</button>`)}
  camStream=s;
  sheet(`<div style="overflow:hidden;border-radius:18px;background:#000"><video id="vp" autoplay playsinline muted style="width:100%;height:56vh;object-fit:cover;display:block"></video></div>
  <p class="mut" style="text-align:center">Encuadra el plato completo y captura.</p>
@@ -119,7 +123,7 @@ function result(r,img){
  const C=2*Math.PI*50,pct=Math.min(1,r.calorias/2000),sc=Math.max(1,Math.min(10,Math.round(r.puntaje_salud||5))),col=sc>=7?'var(--ok)':sc>=4?'#E0A200':'var(--aji)';
  const tot=(r.proteina_g+r.carbs_g+r.grasa_g)||1;
  const mac=(n,v,c)=>`<div class="m"><div class="t"><span>${n}</span><span>${Math.round(v)} g</span></div><div class="bar"><i style="width:${Math.round(v/tot*100)}%;background:${c}"></i></div></div>`;
- sheet(`${img?`<img class="photo" src="${img}" alt="Tu plato">`:''}<h2 style="font-size:26px">${esc(r.plato)}</h2><div class="mut">${esc(r.porcion||'')}</div>
+ sheet(`${img?`<img class="photo" src="${esc(img)}" alt="Tu plato">`:''}<h2 style="font-size:26px">${esc(r.plato)}</h2><div class="mut">${esc(r.porcion||'')}</div>
  <div class="ringw card"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--line)" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="var(--aji)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 60 60)"/></svg>
  <div><div class="big" style="font-size:38px;font-weight:800">${Math.round(r.calorias)}</div><div class="mut">kcal · ${Math.round(pct*100)}% de 2.000 kcal diarias</div></div></div>
  <div class="card">${mac('Proteína',r.proteina_g,'var(--ok)')}${mac('Carbohidratos',r.carbs_g,'var(--maiz)')}${mac('Grasa',r.grasa_g,'var(--aji)')}</div>
@@ -130,7 +134,7 @@ function paywall(){sheet(`<h2 style="font-size:26px">Llegaste a tu límite de ho
  <ul class="f"><li>Escaneos ilimitados</li><li>Historial completo y metas diarias</li><li>Resumen semanal de macros</li></ul></div>
  <button class="btn maiz" id="pro">Probar 7 días gratis</button><button class="btn gh" onclick="cerrarSheet()">Volver mañana</button>
  <p class="mut">Prototipo: aquí se conecta Wompi o Mercado Pago.</p>`);$('#pro').onclick=()=>{S.pro=true;save();cerrarSheet();home()}}
-$('#f').onchange=e=>{console.log('file.onchange disparado, archivos:',e.target.files&&e.target.files.length);const f=e.target.files[0];e.target.value='';if(f)scan(f)};
+$('#f').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)scan(f)};
 home();
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
