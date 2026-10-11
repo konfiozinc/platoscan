@@ -77,7 +77,8 @@ function home(){
  <div class="hero"><h2>Una foto. Las calorías de tu plato.</h2><p>Pensado para bandeja paisa, arepas, sancocho y más comida latina.</p>
  <button class="cam" id="go">📷 Escanear mi plato</button></div>
  <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${esc(safeTh(h.th))}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="mut" style="margin-top:6px">Todavía no has escaneado nada. Toma tu primera foto.</div>'}</div>
- <p class="mut" style="text-align:center">Valores estimados. No reemplazan la consulta con un nutricionista.</p>`;
+ <p class="mut" style="text-align:center">Valores estimados. No reemplazan la consulta con un nutricionista.</p>
+  <p style="text-align:center;margin-top:16px;font-size:13px"><a href="privacidad.html" style="color:var(--mut);text-decoration:underline">Política de Privacidad</a></p>`;
  $('#go').onclick=openCam;
  document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const h=S.hist[+b.dataset.i];result(h.r,h.th)});
 }
