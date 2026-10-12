@@ -85,6 +85,24 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 .mac .bar{background:#e0e4eb}
 @media (max-width:520px){.fab{bottom:calc(110px + env(safe-area-inset-bottom,0px))}}
 @media (min-width:768px){#app{padding-bottom:140px}}
+/* Fase 2: flujo de escaneo */
+.scanov{text-align:center;padding:26px 10px}
+.scanbox{position:relative;width:150px;height:150px;margin:0 auto 18px;border-radius:24px;overflow:hidden;background:#1a2b4a}
+.scanbox .plate{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px}
+.scanbox .beam{position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#f5b800,transparent);box-shadow:0 0 18px 2px #f5b800;animation:beam 1.8s ease-in-out infinite}
+@keyframes beam{0%,100%{top:6%}50%{top:94%}}
+@media (prefers-reduced-motion:reduce){.scanbox .beam{animation:none;top:50%}}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.rmac{background:#fff;border:1px solid #e0e4eb;border-radius:14px;padding:12px 14px}
+.rmac .v{font:800 22px 'Baloo 2',sans-serif;color:#1a2b4a}
+.rmac .v small{font:600 13px 'DM Sans',sans-serif;color:#68718F}
+.rmac .n{font-size:12.5px;font-weight:700;color:#68718F}
+.rmac .bar{height:7px;background:#e0e4eb;border-radius:7px;overflow:hidden;margin-top:7px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.chip{background:#fff;border:1px solid #e0e4eb;border-radius:99px;padding:6px 12px;font-size:13px;font-weight:600;color:#1a2b4a}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(170px + env(safe-area-inset-bottom,0px));background:#1a2b4a;color:#fff;padding:11px 20px;border-radius:99px;font-weight:700;font-size:14px;box-shadow:0 8px 24px -6px rgba(0,0,0,.4);z-index:60;animation:toast 2.4s ease forwards}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,10px)}12%,82%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-8px)}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}}
 </style></head>
 <body><div id="app"></div><div id="ov"></div>
 <input type="file" id="f" accept="image/*" hidden>
@@ -108,16 +126,46 @@ try{const x=JSON.parse(localStorage.getItem('ps')||'null');if(x)S=Object.assign(
 if(S.day!==today()){S.day=today();S.used=0}
 const save=()=>{try{localStorage.setItem('ps',JSON.stringify(S))}catch(e){}};
 const left=()=>S.pro?'∞':Math.max(0,FREE-S.used);
+/* ===== Fase 2: historial persistido (clave platoscan-scans) ===== */
+const SCANS_KEY='platoscan-scans';
+function loadScans(){try{const a=JSON.parse(localStorage.getItem(SCANS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
+let SCANS=loadScans();
+function saveScans(){
+  let a=SCANS.slice(0,30);                  // cap 30 escaneos
+  try{
+    let s=JSON.stringify(a);
+    while(s.length>4*1024*1024&&a.length>1){a=a.slice(0,-1);s=JSON.stringify(a)}  // evacuar más viejos si >4MB
+    localStorage.setItem(SCANS_KEY,s);SCANS=a;
+  }catch(e){                                  // almacenamiento lleno: guardar sin fotos
+    try{const slim=a.map(x=>({...x,foto:'',th:''}));localStorage.setItem(SCANS_KEY,JSON.stringify(slim));SCANS=slim}
+    catch(e2){toast('No se pudo guardar (almacenamiento lleno)')}
+  }
+}
+const dayOf=s=>s&&s.timestamp?new Date(s.timestamp).toISOString().slice(0,10):null;
+function racha(){
+  const days=new Set(SCANS.map(dayOf).filter(Boolean));
+  if(!days.size)return 0;
+  let n=0;const d=new Date();
+  if(!days.has(today()))d.setDate(d.getDate()-1);   // hoy sin escaneo: partir de ayer (mantiene, no suma)
+  while(days.has(d.toISOString().slice(0,10))){n++;d.setDate(d.getDate()-1)}
+  return n;
+}
+function toast(m){const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
 function home(){
- const META={kcal:2000,prot:100,carbs:250,grasa:70},C=2*Math.PI*50,pct=0;
- const macros=[{n:'Proteína',v:0,meta:META.prot,c:'#ef4444'},{n:'Carbos',v:0,meta:META.carbs,c:'#f59e0b'},{n:'Grasa',v:0,meta:META.grasa,c:'#10b981'}];
- $('#app').innerHTML=`<header><div style="display:flex;align-items:center;gap:10px"><img src="icons/icon-192.webp" alt="PlatoScan" width="34" height="34" style="border-radius:9px"><h1>PlatoScan</h1></div><span class="pill">🔥 ${S.racha||0}</span></header>
- <div class="kcal-card"><div class="kcal-titulo">Calorías restantes</div><svg class="kcal-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="#e0e4eb" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="#f5b800" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 60 60)"/></svg><div class="kcal-num">0<span class="kcal-total"> / 2,000 kcal</span></div></div>
- <div class="macros">${macros.map(m=>`<div class="mac"><span class="mac-label">${m.n}</span><span class="mac-num">${m.v}/${m.meta}g</span><div class="bar"><i style="width:0%;background:${m.c}"></i></div></div>`).join('')}</div>
- <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${esc(safeTh(h.th))}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="empty"><span class="e">📷</span>No has escaneado nada<br><span class="mut">Toca el botón + para empezar</span></div>'}</div>
+ const META={kcal:2000,prot:100,carbs:250,grasa:70},C=2*Math.PI*50;
+ const hoy=SCANS.filter(s=>dayOf(s)===today());
+ const sum=k=>hoy.reduce((a,s)=>a+(+s[k]||0),0);
+ const kcal=sum('calorias'),prot=sum('proteina'),carbos=sum('carbos'),grasa=sum('grasa');
+ const pct=Math.min(1,kcal/META.kcal),over=kcal>META.kcal;
+ const macros=[{n:'Proteína',v:prot,meta:META.prot,c:'#ef4444'},{n:'Carbos',v:carbos,meta:META.carbs,c:'#f59e0b'},{n:'Grasa',v:grasa,meta:META.grasa,c:'#10b981'}];
+ const ult=hoy.slice(0,3);
+ $('#app').innerHTML=`<header><div style="display:flex;align-items:center;gap:10px"><img src="icons/icon-192.webp" alt="PlatoScan" width="34" height="34" style="border-radius:9px"><h1>PlatoScan</h1></div><span class="pill" title="Racha de días escaneando">🔥 ${racha()}</span></header>
+ <div class="kcal-card"><div class="kcal-titulo">Calorías restantes</div><svg class="kcal-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="#e0e4eb" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="${over?'#ef4444':'#f5b800'}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 60 60)"/></svg><div class="kcal-num">${Math.round(kcal)}<span class="kcal-total"> / 2,000 kcal</span></div>${over?'<div class="mut" style="margin-top:2px">Superaste tu meta de hoy</div>':''}</div>
+ <div class="macros">${macros.map(m=>`<div class="mac"><span class="mac-label">${m.n}</span><span class="mac-num">${Math.round(m.v)}/${m.meta}g</span><div class="bar"><i style="width:${Math.min(100,Math.round(m.v/m.meta*100))}%;background:${m.c}"></i></div></div>`).join('')}</div>
+ <div class="card"><b>Últimos escaneos</b>${ult.length?ult.map((s,i)=>`<button class="h" data-i="${i}"><img src="${esc(safeTh(s.th))}" alt=""><span><b>${esc(s.plato)}</b><span class="mut">${esc(s.ingredientes&&s.ingredientes.length?s.ingredientes.length+' ingredientes':'')}</span></span><span class="k">${Math.round(s.calorias)} kcal</span></button>`).join(''):'<div class="empty"><span class="e">📷</span>No has escaneado nada<br><span class="mut">Toca el botón + para empezar</span></div>'}</div>
  <p class="mut" style="text-align:center">Valores estimados. No reemplazan la consulta con un nutricionista.</p>
  <p style="text-align:center;margin-top:16px;font-size:13px"><a href="privacidad.html" style="color:var(--mut);text-decoration:underline">Política de Privacidad</a></p>`;
- document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const h=S.hist[+b.dataset.i];result(h.r,h.th)});
+ document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const s=ult[+b.dataset.i];if(s)detalle(s)});
 }
 let camStream=null;
 function cerrarSheet(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('#ov').innerHTML=''}
@@ -156,7 +204,7 @@ let lastScanAt=0;
 async function scan(file){
  if(Date.now()-lastScanAt<5000){return sheet(`<h2>Espera un momento</h2><p class="mut">Solo se permite un escaneo cada 5 segundos.</p><button class="btn" onclick="cerrarSheet()">Entendido</button>`)}
  lastScanAt=Date.now();
- sheet('<div class="spin" role="status" aria-label="Analizando"></div><p style="text-align:center"><b>Analizando tu plato…</b></p>');
+ sheet(`<div class="scanov" role="status" aria-live="polite"><div class="scanbox" aria-hidden="true"><div class="plate">🍽️</div><div class="beam"></div></div><p style="text-align:center;font-weight:700;font-size:17px">Analizando tu plato…</p><p class="mut" style="text-align:center">Estimando calorías y macros</p></div>`);
  try{
   const {full,th}=await compress(file);let r;
   if(!API_URL){await new Promise(z=>setTimeout(z,1400));r=DEMO[Math.floor(Math.random()*DEMO.length)]}
@@ -164,19 +212,39 @@ async function scan(file){
    if(res.status===402){cerrarSheet();S.used=FREE;save();return paywall()}
    r=await res.json();if(!res.ok)throw new Error((r.error||'error')+(r.detalle?(' — '+r.detalle):'')+(r.http?(' [HTTP '+r.http+']'):''))}
   if(r.es_comida===false){sheet(`<h2>No veo comida</h2><p class="mut">Intenta con más luz y el plato completo en la foto.</p><button class="btn" onclick="cerrarSheet()">Entendido</button>`);return}
-  S.used++;S.hist.unshift({r,th});S.hist=S.hist.slice(0,10);save();home();result(r,full)
+  S.used++;save();
+  result({plato:r.plato,calorias:r.calorias,proteina:r.proteina_g||0,carbos:r.carbs_g||0,grasa:r.grasa_g||0,ingredientes:Array.isArray(r.ingredientes)?r.ingredientes:[]},full,th);
  }catch(e){sheet(`<h2>No pudimos analizar la foto</h2><p class="mut" style="word-break:break-word">${esc(e.message||e||'Error desconocido')}</p><button class="btn" onclick="cerrarSheet()">Cerrar</button>`)}
 }
-function result(r,img){
- const C=2*Math.PI*50,pct=Math.min(1,r.calorias/2000),sc=Math.max(1,Math.min(10,Math.round(r.puntaje_salud||5))),col=sc>=7?'var(--ok)':sc>=4?'#E0A200':'var(--aji)';
- const tot=(r.proteina_g+r.carbs_g+r.grasa_g)||1;
- const mac=(n,v,c)=>`<div class="m"><div class="t"><span>${n}</span><span>${Math.round(v)} g</span></div><div class="bar"><i style="width:${Math.round(v/tot*100)}%;background:${c}"></i></div></div>`;
- sheet(`${img?`<img class="photo" src="${esc(img)}" alt="Tu plato">`:''}<h2 style="font-size:26px">${esc(r.plato)}</h2><div class="mut">${esc(r.porcion||'')}</div>
- <div class="ringw card"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--line)" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="var(--aji)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 60 60)"/></svg>
- <div><div class="big" style="font-size:38px;font-weight:800">${Math.round(r.calorias)}</div><div class="mut">kcal · ${Math.round(pct*100)}% de 2.000 kcal diarias</div></div></div>
- <div class="card">${mac('Proteína',r.proteina_g,'var(--ok)')}${mac('Carbohidratos',r.carbs_g,'var(--maiz)')}${mac('Grasa',r.grasa_g,'var(--aji)')}</div>
- <div class="card"><span class="score" style="background:${col}">Salud ${sc}/10</span><p style="margin:10px 0 0">${esc(r.consejo||'')}</p>${(r.ingredientes||[]).length?`<p class="mut">Detectado: ${(r.ingredientes||[]).map(esc).join(', ')}</p>`:''}</div>
- <p class="mut">Estimación aproximada. No reemplaza a un nutricionista.</p><button class="btn" onclick="cerrarSheet()">Listo</button><button class="btn gh" onclick="cerrarSheet();openCam()">📷 Escanear otro plato</button>`)}
+function result(r,img,th){
+ sheet(`${img?`<img class="photo" src="${esc(img)}" alt="Tu plato">`:''}<h2 style="font-size:26px">${esc(r.plato)}</h2>
+ <div class="rgrid">
+  <div class="rmac"><div class="n">Calorías</div><div class="v">${Math.round(r.calorias)}<small> kcal</small></div></div>
+  <div class="rmac"><div class="n">Proteína</div><div class="v">${Math.round(r.proteina)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.proteina/50*100))}%;background:#ef4444"></i></div></div>
+  <div class="rmac"><div class="n">Carbos</div><div class="v">${Math.round(r.carbos)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.carbos/75*100))}%;background:#f59e0b"></i></div></div>
+  <div class="rmac"><div class="n">Grasa</div><div class="v">${Math.round(r.grasa)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.grasa/40*100))}%;background:#10b981"></i></div></div>
+ </div>
+ ${r.ingredientes&&r.ingredientes.length?`<div class="card"><b>Ingredientes detectados</b><div class="chips">${r.ingredientes.map(i=>`<span class="chip">${esc(i)}</span>`).join('')}</div></div>`:''}
+ <p class="mut" style="margin-top:12px">Estimación aproximada. No reemplaza a un nutricionista.</p>
+ <button class="btn maiz" id="guardar">Guardar comida</button>
+ <button class="btn gh" onclick="cerrarSheet()">← Atrás</button>`);
+ $('#guardar').onclick=()=>{SCANS.unshift({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),timestamp:Date.now(),plato:r.plato,calorias:Math.round(r.calorias),proteina:Math.round(r.proteina),carbos:Math.round(r.carbos),grasa:Math.round(r.grasa),foto:img,th:th,ingredientes:r.ingredientes||[]});saveScans();cerrarSheet();home();toast('Comida guardada ✅')};
+ $('#guardar').focus();
+}
+function detalle(s){
+ sheet(`${s.foto?`<img class="photo" src="${esc(safeTh(s.foto))}" alt="Tu plato">`:''}<h2 style="font-size:26px">${esc(s.plato)}</h2>
+ <div class="rgrid">
+  <div class="rmac"><div class="n">Calorías</div><div class="v">${Math.round(s.calorias)}<small> kcal</small></div></div>
+  <div class="rmac"><div class="n">Proteína</div><div class="v">${Math.round(s.proteina)}<small> g</small></div></div>
+  <div class="rmac"><div class="n">Carbos</div><div class="v">${Math.round(s.carbos)}<small> g</small></div></div>
+  <div class="rmac"><div class="n">Grasa</div><div class="v">${Math.round(s.grasa)}<small> g</small></div></div>
+ </div>
+ ${s.ingredientes&&s.ingredientes.length?`<div class="card"><b>Ingredientes detectados</b><div class="chips">${s.ingredientes.map(i=>`<span class="chip">${esc(i)}</span>`).join('')}</div></div>`:''}
+ <p class="mut" style="margin-top:12px">${s.timestamp?new Date(s.timestamp).toLocaleDateString('es-CO',{day:'numeric',month:'long'})+' · '+new Date(s.timestamp).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}):''}</p>
+ <button class="btn gh" id="del">🗑️ Eliminar</button>
+ <button class="btn" onclick="cerrarSheet()">Cerrar</button>`);
+ $('#del').onclick=()=>{SCANS=SCANS.filter(x=>x.id!==s.id);saveScans();cerrarSheet();home();toast('Eliminado')};
+}
 function paywall(){sheet(`<h2 style="font-size:26px">Llegaste a tu límite de hoy</h2><p class="mut">Con Pro escaneas sin límite y llevas tu historial completo.</p>
  <div class="card"><div class="big" style="font-size:36px;font-weight:800">$19.900 <span class="mut" style="font-size:15px;font-family:'DM Sans'">COP / mes</span></div><div class="mut">o $119.900 COP al año (ahorras 50%)</div>
  <ul class="f"><li>Escaneos ilimitados</li><li>Historial completo y metas diarias</li><li>Resumen semanal de macros</li></ul></div>
