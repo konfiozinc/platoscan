@@ -62,7 +62,7 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 @keyframes s{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
 /* Fase 1: dashboard */
-#app{padding-bottom:120px}
+#app{padding-bottom:170px}
 .kcal-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;text-align:center;margin-top:4px}
 .kcal-titulo{font-weight:700;font-size:15px;color:var(--mut);margin-bottom:12px}
 .kcal-ring{width:150px;height:150px;margin:0 auto;display:block}
@@ -79,8 +79,10 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 .bnav button.on{color:#f5b800}
 .bnav button:disabled{opacity:.45;cursor:not-allowed}
 .bnav .ico{font-size:22px}
-.fab{position:fixed;right:20px;bottom:calc(90px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border:0;border-radius:50%;background:#f5b800;color:#2b2100;font-size:26px;cursor:pointer;box-shadow:0 8px 20px -6px rgba(0,0,0,.35);z-index:30;display:flex;align-items:center;justify-content:center}
+.fab{position:fixed;right:max(20px,calc((100vw - 440px)/2 + 20px));bottom:calc(90px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border:0;border-radius:50%;background:#f5b800;color:#2b2100;font-size:26px;cursor:pointer;box-shadow:0 8px 20px -6px rgba(0,0,0,.35);z-index:30;display:flex;align-items:center;justify-content:center}
 .fab:active{transform:scale(.95)}
+.kcal-card,.mac,.card{background:#fff;color:#1a2b4a}
+.mac .bar{background:#e0e4eb}
 </style></head>
 <body><div id="app"></div><div id="ov"></div>
 <input type="file" id="f" accept="image/*" hidden>
