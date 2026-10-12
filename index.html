@@ -61,9 +61,31 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 .spin{width:44px;height:44px;border:5px solid var(--line);border-top-color:var(--aji);border-radius:50%;animation:s 1s linear infinite;margin:30px auto}
 @keyframes s{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+/* Fase 1: dashboard */
+#app{padding-bottom:120px}
+.kcal-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;text-align:center;margin-top:4px}
+.kcal-titulo{font-weight:700;font-size:15px;color:var(--mut);margin-bottom:12px}
+.kcal-ring{width:150px;height:150px;margin:0 auto;display:block}
+.kcal-num{font:800 40px 'Baloo 2',sans-serif;margin-top:6px}
+.kcal-total{font:600 15px 'DM Sans',sans-serif;color:var(--mut)}
+.macros{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
+.mac{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 10px}
+.mac-label{font-size:12px;font-weight:700;color:var(--mut);display:block}
+.mac-num{font-size:13px;font-weight:700;display:block;margin:4px 0 6px}
+.empty{text-align:center;padding:22px 10px;color:var(--mut)}
+.empty .e{font-size:34px;display:block;margin-bottom:8px}
+.bnav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:440px;display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--card);border-top:1px solid var(--line);padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));z-index:20}
+.bnav button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;font:600 12px 'DM Sans',sans-serif;color:var(--mut);cursor:pointer}
+.bnav button.on{color:#f5b800}
+.bnav button:disabled{opacity:.45;cursor:not-allowed}
+.bnav .ico{font-size:22px}
+.fab{position:fixed;right:20px;bottom:calc(90px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border:0;border-radius:50%;background:#f5b800;color:#2b2100;font-size:26px;cursor:pointer;box-shadow:0 8px 20px -6px rgba(0,0,0,.35);z-index:30;display:flex;align-items:center;justify-content:center}
+.fab:active{transform:scale(.95)}
 </style></head>
 <body><div id="app"></div><div id="ov"></div>
 <input type="file" id="f" accept="image/*" hidden>
+<nav class="bnav" id="bnav" aria-label="Navegación"><button class="on" type="button"><span class="ico">🏠</span>Inicio</button><button type="button" disabled><span class="ico">📊</span>Progreso</button><button type="button" disabled><span class="ico">👤</span>Perfil</button></nav>
+<button class="fab" id="fab" type="button" aria-label="Escanear mi plato">📷</button>
 <script>
 /* ===== CONFIG ===== */
 const API_URL='https://platoscan-api.konfiozinc.workers.dev';           // Worker de PlatoScan (Gemini)
@@ -83,13 +105,14 @@ if(S.day!==today()){S.day=today();S.used=0}
 const save=()=>{try{localStorage.setItem('ps',JSON.stringify(S))}catch(e){}};
 const left=()=>S.pro?'∞':Math.max(0,FREE-S.used);
 function home(){
- $('#app').innerHTML=`<header><div style="display:flex;align-items:center;gap:10px"><img src="icons/icon-192.webp" alt="PlatoScan" width="34" height="34" style="border-radius:9px"><h1>PlatoScan</h1></div><span class="pill">${S.pro?'Pro':'Escaneos hoy: '+left()}</span></header>
- <div class="hero"><h2>Una foto. Las calorías de tu plato.</h2><p>Pensado para bandeja paisa, arepas, sancocho y más comida latina.</p>
- <button class="cam" id="go">📷 Escanear mi plato</button></div>
- <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${esc(safeTh(h.th))}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="mut" style="margin-top:6px">Todavía no has escaneado nada. Toma tu primera foto.</div>'}</div>
+ const META={kcal:2000,prot:100,carbs:250,grasa:70},C=2*Math.PI*50,pct=0;
+ const macros=[{n:'Proteína',v:0,meta:META.prot,c:'#ef4444'},{n:'Carbos',v:0,meta:META.carbs,c:'#f59e0b'},{n:'Grasa',v:0,meta:META.grasa,c:'#10b981'}];
+ $('#app').innerHTML=`<header><div style="display:flex;align-items:center;gap:10px"><img src="icons/icon-192.webp" alt="PlatoScan" width="34" height="34" style="border-radius:9px"><h1>PlatoScan</h1></div><span class="pill">🔥 ${S.racha||0}</span></header>
+ <div class="kcal-card"><div class="kcal-titulo">Calorías restantes</div><svg class="kcal-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="#e0e4eb" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="#f5b800" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 60 60)"/></svg><div class="kcal-num">0<span class="kcal-total"> / 2,000 kcal</span></div></div>
+ <div class="macros">${macros.map(m=>`<div class="mac"><span class="mac-label">${m.n}</span><span class="mac-num">${m.v}/${m.meta}g</span><div class="bar"><i style="width:0%;background:${m.c}"></i></div></div>`).join('')}</div>
+ <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${esc(safeTh(h.th))}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="empty"><span class="e">📷</span>No has escaneado nada<br><span class="mut">Toca el botón + para empezar</span></div>'}</div>
  <p class="mut" style="text-align:center">Valores estimados. No reemplazan la consulta con un nutricionista.</p>
-  <p style="text-align:center;margin-top:16px;font-size:13px"><a href="privacidad.html" style="color:var(--mut);text-decoration:underline">Política de Privacidad</a></p>`;
- $('#go').onclick=openCam;
+ <p style="text-align:center;margin-top:16px;font-size:13px"><a href="privacidad.html" style="color:var(--mut);text-decoration:underline">Política de Privacidad</a></p>`;
  document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const h=S.hist[+b.dataset.i];result(h.r,h.th)});
 }
 let camStream=null;
@@ -168,5 +191,6 @@ $('#f').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)scan(f)};
   }catch(e){console.warn('PlatoScan: Firebase fallo (modo fallback):',e&&e.message)}
 })();
 home();
+document.getElementById('fab').onclick=()=>openCam();
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
