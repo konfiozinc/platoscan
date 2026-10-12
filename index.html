@@ -103,10 +103,26 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(170px + env(safe-area-inset-bottom,0px));background:#1a2b4a;color:#fff;padding:11px 20px;border-radius:99px;font-weight:700;font-size:14px;box-shadow:0 8px 24px -6px rgba(0,0,0,.4);z-index:60;animation:toast 2.4s ease forwards}
 @keyframes toast{0%{opacity:0;transform:translate(-50%,10px)}12%,82%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-8px)}}
 @media (prefers-reduced-motion:reduce){.toast{animation:none}}
+/* Fase 3: onboarding */
+.obwrap{max-width:360px;margin:0 auto}
+.ob-hero{background:var(--ink);color:#fff;border-radius:24px;padding:24px 20px;text-align:center;margin-bottom:18px}
+.ob-hero h2{font-size:24px;font-weight:800;line-height:1.15}
+.ob-hero p{color:#c9d0ee;margin:8px 0 0;font-size:14px}
+.field{margin-bottom:14px}
+.field label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}
+.field .unit{color:var(--mut);font-weight:600;font-size:13px}
+.field input{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:13px 14px;font:600 17px 'DM Sans',sans-serif;background:var(--card);color:var(--ink)}
+.field input:focus{outline:none;border-color:var(--maiz)}
+.field ::placeholder{color:var(--mut);font-weight:400}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{border:1.5px solid var(--line);border-radius:14px;padding:11px;background:var(--card);color:var(--ink);font:700 14px 'DM Sans',sans-serif;cursor:pointer}
+.seg button.on{background:var(--maiz);color:#2b2100;border-color:var(--maiz)}
+.sugg{background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13.5px;color:var(--mut)}
+.sugg b{color:var(--ink)}
 </style></head>
 <body><div id="app"></div><div id="ov"></div>
 <input type="file" id="f" accept="image/*" hidden>
-<nav class="bnav" id="bnav" aria-label="Navegación"><button class="on" type="button"><span class="ico">🏠</span>Inicio</button><button type="button" disabled><span class="ico">📊</span>Progreso</button><button type="button" disabled><span class="ico">👤</span>Perfil</button></nav>
+<nav class="bnav" id="bnav" aria-label="Navegación"><button class="on" id="navhome" type="button"><span class="ico">🏠</span>Inicio</button><button type="button" id="navprog" disabled><span class="ico">📊</span>Progreso</button><button type="button" id="navperfil"><span class="ico">👤</span>Perfil</button></nav>
 <button class="fab" id="fab" type="button" aria-label="Escanear mi plato">📷</button>
 <script>
 /* ===== CONFIG ===== */
@@ -126,6 +142,13 @@ try{const x=JSON.parse(localStorage.getItem('ps')||'null');if(x)S=Object.assign(
 if(S.day!==today()){S.day=today();S.used=0}
 const save=()=>{try{localStorage.setItem('ps',JSON.stringify(S))}catch(e){}};
 const left=()=>S.pro?'∞':Math.max(0,FREE-S.used);
+/* ===== Fase 3: perfil de usuario (onboarding) ===== */
+const PROF_KEY='platoscan-perfil';
+function loadProf(){try{const p=JSON.parse(localStorage.getItem(PROF_KEY)||'null');return(p&&typeof p==='object'&&p.peso&&p.altura&&p.edad&&p.meta)?p:null}catch(e){return null}}
+let PROF=loadProf();
+function saveProf(){try{localStorage.setItem(PROF_KEY,JSON.stringify(PROF))}catch(e){toast('No se pudo guardar el perfil')}}
+const META=()=>PROF?{kcal:PROF.meta,prot:Math.round(PROF.meta*0.2/4),carbs:Math.round(PROF.meta*0.5/4),grasa:Math.round(PROF.meta*0.3/9)}:{kcal:2000,prot:100,carbs:250,grasa:70};
+const imc=()=>PROF?PROF.peso/Math.pow(PROF.altura/100,2):null;
 /* ===== Fase 2: historial persistido (clave platoscan-scans) ===== */
 const SCANS_KEY='platoscan-scans';
 function loadScans(){try{const a=JSON.parse(localStorage.getItem(SCANS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
@@ -152,20 +175,57 @@ function racha(){
 }
 function toast(m){const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
 function home(){
- const META={kcal:2000,prot:100,carbs:250,grasa:70},C=2*Math.PI*50;
+ const M=META(),C=2*Math.PI*50;
+ document.getElementById('fab').style.display='';document.getElementById('bnav').style.display='';
+ document.getElementById('navhome').classList.add('on');document.getElementById('navperfil').classList.remove('on');
  const hoy=SCANS.filter(s=>dayOf(s)===today());
  const sum=k=>hoy.reduce((a,s)=>a+(+s[k]||0),0);
  const kcal=sum('calorias'),prot=sum('proteina'),carbos=sum('carbos'),grasa=sum('grasa');
- const pct=Math.min(1,kcal/META.kcal),over=kcal>META.kcal;
- const macros=[{n:'Proteína',v:prot,meta:META.prot,c:'#ef4444'},{n:'Carbos',v:carbos,meta:META.carbs,c:'#f59e0b'},{n:'Grasa',v:grasa,meta:META.grasa,c:'#10b981'}];
+ const pct=Math.min(1,kcal/M.kcal),over=kcal>M.kcal;
+ const macros=[{n:'Proteína',v:prot,meta:M.prot,c:'#ef4444'},{n:'Carbos',v:carbos,meta:M.carbs,c:'#f59e0b'},{n:'Grasa',v:grasa,meta:M.grasa,c:'#10b981'}];
  const ult=hoy.slice(0,3);
  $('#app').innerHTML=`<header><div style="display:flex;align-items:center;gap:10px"><img src="icons/icon-192.webp" alt="PlatoScan" width="34" height="34" style="border-radius:9px"><h1>PlatoScan</h1></div><span class="pill" title="Racha de días escaneando">🔥 ${racha()}</span></header>
- <div class="kcal-card"><div class="kcal-titulo">Calorías restantes</div><svg class="kcal-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="#e0e4eb" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="${over?'#ef4444':'#f5b800'}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 60 60)"/></svg><div class="kcal-num">${Math.round(kcal)}<span class="kcal-total"> / 2,000 kcal</span></div>${over?'<div class="mut" style="margin-top:2px">Superaste tu meta de hoy</div>':''}</div>
+ <div class="kcal-card"><div class="kcal-titulo">Calorías restantes</div><svg class="kcal-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="#e0e4eb" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="${over?'#ef4444':'#f5b800'}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 60 60)"/></svg><div class="kcal-num">${Math.round(kcal)}<span class="kcal-total"> / ${M.kcal.toLocaleString('es-CO')} kcal</span></div>${over?'<div class="mut" style="margin-top:2px">Superaste tu meta de hoy</div>':''}</div>
  <div class="macros">${macros.map(m=>`<div class="mac"><span class="mac-label">${m.n}</span><span class="mac-num">${Math.round(m.v)}/${m.meta}g</span><div class="bar"><i style="width:${Math.min(100,Math.round(m.v/m.meta*100))}%;background:${m.c}"></i></div></div>`).join('')}</div>
  <div class="card"><b>Últimos escaneos</b>${ult.length?ult.map((s,i)=>`<button class="h" data-i="${i}"><img src="${esc(safeTh(s.th))}" alt=""><span><b>${esc(s.plato)}</b><span class="mut">${esc(s.ingredientes&&s.ingredientes.length?s.ingredientes.length+' ingredientes':'')}</span></span><span class="k">${Math.round(s.calorias)} kcal</span></button>`).join(''):'<div class="empty"><span class="e">📷</span>No has escaneado nada<br><span class="mut">Toca el botón + para empezar</span></div>'}</div>
  <p class="mut" style="text-align:center">Valores estimados. No reemplazan la consulta con un nutricionista.</p>
  <p style="text-align:center;margin-top:16px;font-size:13px"><a href="privacidad.html" style="color:var(--mut);text-decoration:underline">Política de Privacidad</a></p>`;
  document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const s=ult[+b.dataset.i];if(s)detalle(s)});
+}
+function onboarding(edit){
+ document.getElementById('fab').style.display='none';document.getElementById('bnav').style.display='none';
+ document.getElementById('navhome').classList.remove('on');document.getElementById('navperfil').classList.add('on');
+ const p=PROF||{sexo:'',peso:'',altura:'',edad:'',meta:''};
+ $('#app').innerHTML=`<div class="obwrap">
+ <div class="ob-hero"><h2>${edit?'Tu perfil':'Bienvenido a PlatoScan 🥗'}</h2><p>${edit?'Actualiza tus datos para metas precisas.':'Cuéntanos de ti para personalizar tu meta calórica y macros.'}</p></div>
+ <div class="field"><label>Sexo</label><div class="seg"><button type="button" id="segH" class="${p.sexo==='H'?'on':''}">Hombre</button><button type="button" id="segM" class="${p.sexo==='M'?'on':''}">Mujer</button></div></div>
+ <div class="field"><label for="obPeso">Peso <span class="unit">(kg)</span></label><input id="obPeso" type="number" inputmode="decimal" min="30" max="300" step="0.1" placeholder="Ej. 72" value="${p.peso||''}"></div>
+ <div class="field"><label for="obAltura">Altura <span class="unit">(cm)</span></label><input id="obAltura" type="number" inputmode="numeric" min="100" max="250" step="1" placeholder="Ej. 170" value="${p.altura||''}"></div>
+ <div class="field"><label for="obEdad">Edad <span class="unit">(años)</span></label><input id="obEdad" type="number" inputmode="numeric" min="10" max="100" step="1" placeholder="Ej. 30" value="${p.edad||''}"></div>
+ <div class="field"><label for="obMeta">Meta calórica <span class="unit">(kcal/día)</span></label><input id="obMeta" type="number" inputmode="numeric" min="800" max="6000" step="10" placeholder="Se calcula al llenar los datos" value="${p.meta||''}"></div>
+ <div class="sugg" id="obSugg">Llena peso, altura, edad y sexo para sugerirte una meta.</div>
+ <button class="btn maiz" id="obSave" style="margin-top:18px">${edit?'Guardar cambios':'Empezar 🚀'}</button>
+ ${edit?'<button class="btn gh" onclick="home()">Cancelar</button>':''}
+ </div>`;
+ let sexo=p.sexo;
+ document.getElementById('segH').onclick=()=>{sexo='H';document.getElementById('segH').classList.add('on');document.getElementById('segM').classList.remove('on');sug()};
+ document.getElementById('segM').onclick=()=>{sexo='M';document.getElementById('segM').classList.add('on');document.getElementById('segH').classList.remove('on');sug()};
+ const val=id=>{const v=parseFloat(document.getElementById(id).value);return isFinite(v)&&v>0?v:null};
+ const sug=()=>{
+  const w=val('obPeso'),a=val('obAltura'),e=val('obEdad'),m=val('obMeta');
+  if(!w||!a||!e||!sexo){return}
+  const bmr=sexo==='H'?10*w+6.25*a-5*e+5:10*w+6.25*a-5*e-161;   // Mifflin-St Jeor
+  const meta=Math.round(bmr*1.4/10)*10;                            // actividad ligera
+  const el=document.getElementById('obSugg');
+  el.innerHTML=`Sugerencia: <b>${meta.toLocaleString('es-CO')} kcal/día</b> (mantenimiento). Ajusta la meta si buscas bajar o subir de peso.`;
+  if(!m)document.getElementById('obMeta').value=meta;
+ };
+ ['obPeso','obAltura','obEdad'].forEach(id=>document.getElementById(id).addEventListener('input',sug));
+ document.getElementById('obSave').onclick=()=>{
+  const peso=val('obPeso'),altura=val('obAltura'),edad=val('obEdad'),meta=val('obMeta');
+  if(!peso||!altura||!edad||!sexo||!meta){toast('Completa todos los campos');return}
+  PROF={sexo,peso,altura,edad,meta};saveProf();home();toast(edit?'Perfil guardado ✅':'¡Listo! Metas personalizadas ✅');
+ };
 }
 let camStream=null;
 function cerrarSheet(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('#ov').innerHTML=''}
@@ -217,12 +277,13 @@ async function scan(file){
  }catch(e){sheet(`<h2>No pudimos analizar la foto</h2><p class="mut" style="word-break:break-word">${esc(e.message||e||'Error desconocido')}</p><button class="btn" onclick="cerrarSheet()">Cerrar</button>`)}
 }
 function result(r,img,th){
+ const M=META(),mp={prot:M.prot/3,carbs:M.carbs/3,grasa:M.grasa/3};
  sheet(`${img?`<img class="photo" src="${esc(img)}" alt="Tu plato">`:''}<h2 style="font-size:26px">${esc(r.plato)}</h2>
  <div class="rgrid">
   <div class="rmac"><div class="n">Calorías</div><div class="v">${Math.round(r.calorias)}<small> kcal</small></div></div>
-  <div class="rmac"><div class="n">Proteína</div><div class="v">${Math.round(r.proteina)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.proteina/50*100))}%;background:#ef4444"></i></div></div>
-  <div class="rmac"><div class="n">Carbos</div><div class="v">${Math.round(r.carbos)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.carbos/75*100))}%;background:#f59e0b"></i></div></div>
-  <div class="rmac"><div class="n">Grasa</div><div class="v">${Math.round(r.grasa)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.grasa/40*100))}%;background:#10b981"></i></div></div>
+  <div class="rmac"><div class="n">Proteína</div><div class="v">${Math.round(r.proteina)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.proteina/mp.prot*100))}%;background:#ef4444"></i></div></div>
+  <div class="rmac"><div class="n">Carbos</div><div class="v">${Math.round(r.carbos)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.carbos/mp.carbs*100))}%;background:#f59e0b"></i></div></div>
+  <div class="rmac"><div class="n">Grasa</div><div class="v">${Math.round(r.grasa)}<small> g</small></div><div class="bar"><i style="width:${Math.min(100,Math.round(r.grasa/mp.grasa*100))}%;background:#10b981"></i></div></div>
  </div>
  ${r.ingredientes&&r.ingredientes.length?`<div class="card"><b>Ingredientes detectados</b><div class="chips">${r.ingredientes.map(i=>`<span class="chip">${esc(i)}</span>`).join('')}</div></div>`:''}
  <p class="mut" style="margin-top:12px">Estimación aproximada. No reemplaza a un nutricionista.</p>
@@ -262,7 +323,9 @@ $('#f').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)scan(f)};
       .catch(e=>console.warn('PlatoScan: signInAnonymously fallo:',e&&e.message));
   }catch(e){console.warn('PlatoScan: Firebase fallo (modo fallback):',e&&e.message)}
 })();
-home();
+if(PROF){home()}else{onboarding(false)}
 document.getElementById('fab').onclick=()=>openCam();
+document.getElementById('navhome').onclick=()=>home();
+document.getElementById('navperfil').onclick=()=>onboarding(true);
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
