@@ -47,11 +47,21 @@ header h1{font-size:28px;font-weight:800}
 .h:last-child{border-bottom:0}
 .h img{width:48px;height:48px;border-radius:12px;object-fit:cover;background:var(--line)}
 .h b{display:block}.h .k{margin-left:auto;font-weight:700}
-.ov{position:fixed;inset:0;background:rgba(10,14,30,.6);display:flex;align-items:flex-end;justify-content:center;z-index:5;animation:ovfade .25s ease}
+.ov{position:fixed;inset:0;background:rgba(10,14,30,.6);display:flex;align-items:flex-end;justify-content:center;z-index:40;animation:ovfade .25s ease}
 .sheet{background:var(--bg);width:100%;max-width:440px;max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom,0px));animation:slideup .25s ease}
 @keyframes ovfade{from{opacity:0}to{opacity:1}}
 @keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @media (prefers-reduced-motion:reduce){.ov,.sheet{animation:none}}
+/* Cámara fullscreen */
+body.cam-activa{overflow:hidden}
+body.cam-activa #bnav,body.cam-activa #fab{display:none !important}
+.ov.camfull{background:#000;align-items:stretch;flex-direction:column;justify-content:flex-start;animation:none}
+.camfull video{flex:1 1 auto;width:100%;min-height:0;object-fit:cover;background:#000;display:block}
+.camctl{padding:14px 18px calc(22px + env(safe-area-inset-bottom,0px));background:#000}
+.camhint{color:#c9d0ee;text-align:center;font-size:14px;margin:0 0 14px}
+.camctl .btn{margin-top:0}
+.camcancel{width:100%;background:transparent;border:0;color:#8a93b8;font:600 16px 'DM Sans',sans-serif;padding:12px;margin-top:4px;cursor:pointer}
+.camcancel:focus-visible{outline:3px solid var(--aji);outline-offset:2px}
 .photo{width:100%;height:170px;object-fit:cover;border-radius:18px;margin-bottom:12px}
 .ringw{display:flex;align-items:center;gap:16px}
 .ringw svg{width:120px;height:120px;flex:none}
@@ -231,7 +241,7 @@ function onboarding(edit){
  };
 }
 let camStream=null;
-function cerrarSheet(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('#ov').innerHTML=''}
+function cerrarSheet(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}document.body.classList.remove('cam-activa');$('#ov').innerHTML=''}
 function sheet(h){$('#ov').innerHTML=`<div class="ov" onclick="if(event.target===this)cerrarSheet()"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`}
 function openCam(){
  if(!S.pro&&S.used>=FREE)return paywall();
@@ -250,9 +260,15 @@ async function startCam(){
  try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})}
  catch(err){return sheet(`<h2>No pudimos acceder a la cámara</h2><p class="mut">Revisa los permisos de cámara del navegador, o usa una foto de tu galería.</p><button class="btn maiz" onclick="cerrarSheet();$('#f').click()">🖼️ Elegir de galería</button><button class="btn gh" onclick="openCam()">Volver</button>`)}
  camStream=s;
- sheet(`<div style="overflow:hidden;border-radius:18px;background:#000"><video id="vp" autoplay playsinline muted style="width:100%;height:56vh;object-fit:cover;display:block"></video></div>
- <p class="mut" style="text-align:center">Encuadra el plato completo y captura.</p>
- <div style="display:flex;gap:10px;margin-top:6px"><button class="btn gh" onclick="cerrarSheet()">Cancelar</button><button class="btn maiz" id="shoot">📸 Capturar</button></div>`);
+ document.body.classList.add('cam-activa');
+ $('#ov').innerHTML=`<div class="ov camfull" role="dialog" aria-modal="true">
+  <video id="vp" autoplay playsinline muted></video>
+  <div class="camctl">
+   <p class="camhint">Encuadra el plato completo y captura.</p>
+   <button class="btn maiz" id="shoot">📸 Capturar</button>
+   <button class="camcancel" onclick="cerrarSheet()">Cancelar</button>
+  </div>
+ </div>`;
  const vp=$('#vp');vp.srcObject=camStream;vp.play().catch(()=>{});
  $('#shoot').onclick=()=>{
   const c=document.createElement('canvas');c.width=vp.videoWidth||1280;c.height=vp.videoHeight||720;
