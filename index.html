@@ -8,9 +8,19 @@
 <meta name="theme-color" content="#1B2340">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="PlatoScan">
-<link rel="icon" href="./icons/icon-192.png">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="icon" type="image/webp" sizes="32x32" href="icons/webp/favicon-32.webp">
+<link rel="icon" type="image/webp" sizes="64x64" href="icons/webp/favicon-64.webp">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/webp/apple-touch-180.webp">
+<link rel="shortcut icon" href="icons/webp/favicon-32.webp">
 <title>PlatoScan – calorías de tu plato con una foto</title>
+<meta property="og:title" content="PlatoScan – calorías de tu plato con una foto">
+<meta property="og:description" content="Toma una foto de tu plato y conoce sus calorías y macronutrientes.">
+<meta property="og:image" content="https://konfiozinc.github.io/platoscan/icons/webp/og-image.webp">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://konfiozinc.github.io/platoscan/icons/webp/og-image.webp">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- Firebase Auth (build compat; este bloque es clasico y usa onclick= inline, por eso no se usan modulos ES6) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -73,7 +83,7 @@ if(S.day!==today()){S.day=today();S.used=0}
 const save=()=>{try{localStorage.setItem('ps',JSON.stringify(S))}catch(e){}};
 const left=()=>S.pro?'∞':Math.max(0,FREE-S.used);
 function home(){
- $('#app').innerHTML=`<header><h1>PlatoScan</h1><span class="pill">${S.pro?'Pro':'Escaneos hoy: '+left()}</span></header>
+ $('#app').innerHTML=`<header><div style="display:flex;align-items:center;gap:10px"><img src="icons/icon-192.webp" alt="PlatoScan" width="34" height="34" style="border-radius:9px"><h1>PlatoScan</h1></div><span class="pill">${S.pro?'Pro':'Escaneos hoy: '+left()}</span></header>
  <div class="hero"><h2>Una foto. Las calorías de tu plato.</h2><p>Pensado para bandeja paisa, arepas, sancocho y más comida latina.</p>
  <button class="cam" id="go">📷 Escanear mi plato</button></div>
  <div class="card"><b>Últimos escaneos</b>${S.hist.length?S.hist.map((h,i)=>`<button class="h" data-i="${i}"><img src="${esc(safeTh(h.th))}" alt=""><span><b>${esc(h.r.plato)}</b><span class="mut">${esc(h.r.porcion||'')}</span></span><span class="k">${Math.round(h.r.calorias)} kcal</span></button>`).join(''):'<div class="mut" style="margin-top:6px">Todavía no has escaneado nada. Toma tu primera foto.</div>'}</div>
