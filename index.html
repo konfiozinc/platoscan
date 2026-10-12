@@ -47,8 +47,11 @@ header h1{font-size:28px;font-weight:800}
 .h:last-child{border-bottom:0}
 .h img{width:48px;height:48px;border-radius:12px;object-fit:cover;background:var(--line)}
 .h b{display:block}.h .k{margin-left:auto;font-weight:700}
-.ov{position:fixed;inset:0;background:rgba(10,14,30,.6);display:flex;align-items:flex-end;justify-content:center;z-index:5}
-.sheet{background:var(--bg);width:100%;max-width:440px;max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom,0px))}
+.ov{position:fixed;inset:0;background:rgba(10,14,30,.6);display:flex;align-items:flex-end;justify-content:center;z-index:5;animation:ovfade .25s ease}
+.sheet{background:var(--bg);width:100%;max-width:440px;max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom,0px));animation:slideup .25s ease}
+@keyframes ovfade{from{opacity:0}to{opacity:1}}
+@keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){.ov,.sheet{animation:none}}
 .photo{width:100%;height:170px;object-fit:cover;border-radius:18px;margin-bottom:12px}
 .ringw{display:flex;align-items:center;gap:16px}
 .ringw svg{width:120px;height:120px;flex:none}
@@ -234,18 +237,18 @@ function openCam(){
  if(!S.pro&&S.used>=FREE)return paywall();
  sheet(`<h2 style="font-size:24px">Escanea tu plato</h2>
  <button class="btn maiz" id="usecam">📷 Tomar foto</button>
- <button class="btn gh" id="usefile">🖼️ Subir de galería</button>
+ <button class="btn gh" id="usefile">🖼️ Elegir de galería</button>
  <button class="btn gh" onclick="cerrarSheet()">Cancelar</button>`);
  $('#usecam').onclick=startCam;
  $('#usefile').onclick=()=>$('#f').click();
 }
 async function startCam(){
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-  return sheet(`<h2>Cámara no disponible</h2><p class="mut">Este navegador no permite usar la cámara aquí. Usa "Subir de galería".</p><button class="btn" onclick="openCam()">Volver</button>`);
+  return sheet(`<h2>Cámara no disponible</h2><p class="mut">Este navegador no permite usar la cámara aquí. Puedes elegir una foto de tu galería.</p><button class="btn maiz" onclick="cerrarSheet();$('#f').click()">🖼️ Elegir de galería</button><button class="btn gh" onclick="openCam()">Volver</button>`);
  }
  let s;
  try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})}
- catch(err){return sheet(`<h2>No pudimos acceder a la cámara</h2><p class="mut">Revisa los permisos de cámara del navegador, o usa "Subir de galería".</p><button class="btn" onclick="openCam()">Volver</button>`)}
+ catch(err){return sheet(`<h2>No pudimos acceder a la cámara</h2><p class="mut">Revisa los permisos de cámara del navegador, o usa una foto de tu galería.</p><button class="btn maiz" onclick="cerrarSheet();$('#f').click()">🖼️ Elegir de galería</button><button class="btn gh" onclick="openCam()">Volver</button>`)}
  camStream=s;
  sheet(`<div style="overflow:hidden;border-radius:18px;background:#000"><video id="vp" autoplay playsinline muted style="width:100%;height:56vh;object-fit:cover;display:block"></video></div>
  <p class="mut" style="text-align:center">Encuadra el plato completo y captura.</p>
