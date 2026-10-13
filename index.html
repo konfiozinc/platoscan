@@ -132,10 +132,33 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 .seg button.on{background:var(--maiz);color:#2b2100;border-color:var(--maiz)}
 .sugg{background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13.5px;color:var(--mut)}
 .sugg b{color:var(--ink)}
+/* Fase 3: Progreso */
+.prog-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.prog-head img{width:34px;height:34px;border-radius:9px}
+.prog-head h1{font-size:22px;font-weight:800;margin:0}
+.imc-card{background:#fff;border:1px solid #e0e4eb;border-radius:20px;padding:22px 18px;text-align:center;color:#1a2b4a}
+.imc-titulo{font-size:14px;font-weight:700;color:#68718F}
+.imc-num{font:800 46px 'Baloo 2',sans-serif;line-height:1;margin-top:4px}
+.imc-lbl{font-size:15px;font-weight:700;margin-top:5px}
+.imc-bar{position:relative;height:10px;border-radius:99px;margin:24px 0 6px;background:linear-gradient(90deg,#3b82f6 0%,#3b82f6 10.42%,#10b981 10.42%,#10b981 37.5%,#f59e0b 37.5%,#f59e0b 58.33%,#ef4444 58.33%,#ef4444 100%)}
+.imc-dot{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:#fff;border:4px solid #1a2b4a;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.imc-ticks{position:relative;height:18px}
+.imc-ticks span{position:absolute;top:0;font-size:11px;font-weight:600;color:#68718F}
+.tog{display:inline-flex;background:#eef1f8;border-radius:99px;padding:3px}
+.tog button{border:0;background:transparent;border-radius:99px;padding:7px 15px;font:700 13px 'DM Sans',sans-serif;color:#68718F;cursor:pointer}
+.tog button.on{background:#fff;color:#1a2b4a;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.delta{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:7px 14px;font-weight:700;font-size:13.5px}
+.peso-input{display:flex;gap:10px;align-items:center;margin-top:12px}
+.peso-input input{flex:1;min-width:0;border:1.5px solid #e0e4eb;border-radius:14px;padding:13px 14px;font:600 17px 'DM Sans',sans-serif;background:#fff;color:#1a2b4a}
+.peso-input input:focus{outline:none;border-color:#f5b800}
+.peso-input .btn{flex:none;width:auto;margin-top:0;padding:13px 22px;border-radius:14px}
+#chartWrap svg{width:100%;height:auto;display:block}
+.empty-peso{text-align:center;padding:26px 10px;color:#68718F}
+.empty-peso .ico{font-size:38px;display:block;margin-bottom:10px}
 </style></head>
 <body><div id="app"></div><div id="ov"></div>
 <input type="file" id="f" accept="image/*" hidden>
-<nav class="bnav" id="bnav" aria-label="Navegación"><button class="on" id="navhome" type="button"><span class="ico">🏠</span>Inicio</button><button type="button" id="navprog" disabled><span class="ico">📊</span>Progreso</button><button type="button" id="navperfil"><span class="ico">👤</span>Perfil</button></nav>
+<nav class="bnav" id="bnav" aria-label="Navegación"><button class="on" id="navhome" type="button"><span class="ico">🏠</span>Inicio</button><button type="button" id="navprog"><span class="ico">📊</span>Progreso</button><button type="button" id="navperfil"><span class="ico">👤</span>Perfil</button></nav>
 <button class="fab" id="fab" type="button" aria-label="Escanear mi plato">📷</button>
 <script>
 /* ===== CONFIG ===== */
@@ -162,6 +185,24 @@ let PROF=loadProf();
 function saveProf(){try{localStorage.setItem(PROF_KEY,JSON.stringify(PROF))}catch(e){toast('No se pudo guardar el perfil')}}
 const META=()=>PROF?{kcal:PROF.meta,prot:Math.round(PROF.meta*0.2/4),carbs:Math.round(PROF.meta*0.5/4),grasa:Math.round(PROF.meta*0.3/9)}:{kcal:2000,prot:100,carbs:250,grasa:70};
 const imc=()=>PROF?PROF.peso/Math.pow(PROF.altura/100,2):null;
+/* ===== Fase 3: registro de peso (clave platoscan-pesos) ===== */
+const ldate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const PESOS_KEY='platoscan-pesos';
+function loadPesos(){try{const a=JSON.parse(localStorage.getItem(PESOS_KEY)||'[]');return Array.isArray(a)?a.filter(p=>p&&p.fecha&&+p.peso>0).sort((x,y)=>x.fecha<y.fecha?-1:1):[]}catch(e){return[]}}
+let PESOS=loadPesos();
+function savePesos(){
+  let a=PESOS.slice(-365);                 // cap 1 año
+  try{localStorage.setItem(PESOS_KEY,JSON.stringify(a));PESOS=a}
+  catch(e){while(a.length>1){a=a.slice(1);try{localStorage.setItem(PESOS_KEY,JSON.stringify(a));PESOS=a;break}catch(e2){}}}
+}
+function registrarPeso(peso){
+  const f=ldate();const i=PESOS.findIndex(p=>p.fecha===f);
+  if(i>=0)PESOS[i]={fecha:f,peso};else PESOS.push({fecha:f,peso});
+  PESOS.sort((x,y)=>x.fecha<y.fecha?-1:1);savePesos();
+  if(PROF){PROF.peso=peso;saveProf()}       // mantener perfil sincronizado
+}
+function seedPesoInicial(){if(!PESOS.length&&PROF&&PROF.peso){PESOS.push({fecha:ldate(),peso:PROF.peso});savePesos()}}
+const clsIMC=v=>v<18.5?{l:'Bajo peso',c:'#3b82f6'}:v<25?{l:'Saludable',c:'#10b981'}:v<30?{l:'Sobrepeso',c:'#f59e0b'}:{l:'Obesidad',c:'#ef4444'};
 /* ===== Fase 2: historial persistido (clave platoscan-scans) ===== */
 const SCANS_KEY='platoscan-scans';
 function loadScans(){try{const a=JSON.parse(localStorage.getItem(SCANS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
@@ -189,8 +230,7 @@ function racha(){
 function toast(m){const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
 function home(){
  const M=META(),C=2*Math.PI*50;
- document.getElementById('fab').style.display='';document.getElementById('bnav').style.display='';
- document.getElementById('navhome').classList.add('on');document.getElementById('navperfil').classList.remove('on');
+ document.getElementById('fab').style.display='';document.getElementById('bnav').style.display='';setNav('navhome');
  const hoy=SCANS.filter(s=>dayOf(s)===today());
  const sum=k=>hoy.reduce((a,s)=>a+(+s[k]||0),0);
  const kcal=sum('calorias'),prot=sum('proteina'),carbos=sum('carbos'),grasa=sum('grasa');
@@ -206,8 +246,7 @@ function home(){
  document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{const s=ult[+b.dataset.i];if(s)detalle(s)});
 }
 function onboarding(edit){
- document.getElementById('fab').style.display='none';document.getElementById('bnav').style.display='none';
- document.getElementById('navhome').classList.remove('on');document.getElementById('navperfil').classList.add('on');
+ document.getElementById('fab').style.display='none';document.getElementById('bnav').style.display='none';setNav('navperfil');
  const p=PROF||{sexo:'',peso:'',altura:'',edad:'',meta:''};
  $('#app').innerHTML=`<div class="obwrap">
  <div class="ob-hero"><h2>${edit?'Tu perfil':'Bienvenido a PlatoScan 🥗'}</h2><p>${edit?'Actualiza tus datos para metas precisas.':'Cuéntanos de ti para personalizar tu meta calórica y macros.'}</p></div>
@@ -237,8 +276,57 @@ function onboarding(edit){
  document.getElementById('obSave').onclick=()=>{
   const peso=val('obPeso'),altura=val('obAltura'),edad=val('obEdad'),meta=val('obMeta');
   if(!peso||!altura||!edad||!sexo||!meta){toast('Completa todos los campos');return}
-  PROF={sexo,peso,altura,edad,meta};saveProf();home();toast(edit?'Perfil guardado ✅':'¡Listo! Metas personalizadas ✅');
+  PROF={sexo,peso,altura,edad,meta};saveProf();seedPesoInicial();home();toast(edit?'Perfil guardado ✅':'¡Listo! Metas personalizadas ✅');
  };
+}
+function setNav(active){['navhome','navprog','navperfil'].forEach(id=>document.getElementById(id).classList.toggle('on',id===active))}
+function chartHTML(dias){
+ const fin=new Date();fin.setHours(0,0,0,0);
+ const ini=new Date(fin);ini.setDate(ini.getDate()-(dias-1));
+ const w=320,h=180,pl=34,pr=12,pt=16,pb=30,plotW=w-pl-pr,plotH=h-pt-pb;
+ const win=PESOS.filter(p=>{const d=new Date(p.fecha+'T00:00:00');return d>=ini&&d<=fin});
+ if(win.length<2)return `<div class="empty-peso"><span class="ico">📈</span>Registra más pesos para ver tu tendencia</div>`;
+ const vals=win.map(p=>p.peso),min=Math.min(...vals)-1,max=Math.max(...vals)+1;
+ const x=p=>pl+plotW*(1-(fin-new Date(p.fecha+'T00:00:00'))/86400000/(dias-1));
+ const y=v=>pt+plotH*(1-(v-min)/(max-min));
+ win.sort((a,b)=>a.fecha<b.fecha?-1:1);
+ const pts=win.map(p=>`${x(p).toFixed(1)},${y(p.peso).toFixed(1)}`).join(' ');
+ const dots=win.map(p=>`<circle cx="${x(p).toFixed(1)}" cy="${y(p.peso).toFixed(1)}" r="4" fill="#f5b800" stroke="#1a2b4a" stroke-width="1.5"/>`).join('');
+ const ylab=`<text x="${pl-6}" y="${(y(max)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#68718F">${Math.round(max)}</text><text x="${pl-6}" y="${(y(min)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#68718F">${Math.round(min)}</text>`;
+ let xlab='';
+ if(dias===7){for(let i=0;i<dias;i++){const d=new Date(ini);d.setDate(ini.getDate()+i);xlab+=`<text x="${(pl+plotW*(i/(dias-1))).toFixed(1)}" y="${h-8}" text-anchor="middle" font-size="9" fill="#68718F">${d.toLocaleDateString('es-CO',{weekday:'short'}).replace('.','')}</text>`}}
+ else{for(let i=0;i<dias;i+=5){const d=new Date(ini);d.setDate(ini.getDate()+i);xlab+=`<text x="${(pl+plotW*(i/(dias-1))).toFixed(1)}" y="${h-8}" text-anchor="middle" font-size="9" fill="#68718F">${d.getDate()}/${d.getMonth()+1}</text>`}}
+ return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Tendencia de peso">${ylab}${xlab}<polyline points="${pts}" fill="none" stroke="#1a2b4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${dots}</svg>`;
+}
+function deltaBadge(){
+ if(PESOS.length<2)return '';
+ const target=new Date();target.setDate(target.getDate()-7);
+ const tf=`${target.getFullYear()}-${String(target.getMonth()+1).padStart(2,'0')}-${String(target.getDate()).padStart(2,'0')}`;
+ const base=PESOS.find(p=>p.fecha===tf);
+ if(!base)return '';
+ const cur=PESOS[PESOS.length-1],diff=cur.peso-base.peso,r=Math.round(diff*10)/10;
+ if(Math.abs(r)<0.05)return `<span class="delta" style="color:#68718F">— Sin cambios vs. hace 7 días</span>`;
+ const down=r<0;
+ return `<span class="delta" style="color:${down?'#10b981':'#f59e0b'}">${down?'↓':'↑'} ${Math.abs(r).toFixed(1)} kg vs. hace 7 días</span>`;
+}
+function progreso(){
+ document.getElementById('fab').style.display='none';document.getElementById('bnav').style.display='';setNav('navprog');
+ const v=imc();
+ let imcHTML;
+ if(v==null){
+  imcHTML=`<div class="imc-card"><div class="imc-titulo">Tu IMC</div><p class="mut" style="margin:14px 0">Completa tu perfil para calcular tu IMC.</p><button class="btn maiz" onclick="onboarding(true)">Completar perfil</button></div>`;
+ }else{
+  const c=clsIMC(v),pos=Math.max(0,Math.min(100,(v-16)/24*100));
+  imcHTML=`<div class="imc-card"><div class="imc-titulo">Tu IMC</div><div class="imc-num">${v.toFixed(1)}</div><div class="imc-lbl" style="color:${c.c}">${c.l}</div>
+  <div class="imc-bar"><div class="imc-dot" style="left:${pos}%"></div></div>
+  <div class="imc-ticks"><span style="left:0%">16</span><span style="left:${(18.5-16)/24*100}%">18.5</span><span style="left:${(25-16)/24*100}%">25</span><span style="left:${(30-16)/24*100}%">30</span><span style="left:100%">40</span></div></div>`;
+ }
+ $('#app').innerHTML=`<div class="prog-head"><img src="icons/icon-192.webp" alt="PlatoScan"><h1>Progreso</h1></div>${imcHTML}
+ <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Tendencia de peso</b><div class="tog" role="tablist" aria-label="Rango del gráfico"><button class="on" id="tg7" type="button">7 días</button><button id="tg30" type="button">30 días</button></div></div><div id="chart" style="margin-top:12px">${chartHTML(7)}</div><div style="margin-top:8px">${deltaBadge()}</div></div>
+ <div class="card"><b>Registrar peso</b><div class="peso-input"><input id="pesoIn" type="number" inputmode="decimal" min="30" max="300" step="0.1" placeholder="Tu peso en kg" aria-label="Tu peso en kilogramos" aria-describedby="pesoHint"><button class="btn maiz" id="pesoBtn">Guardar</button></div><p class="mut" id="pesoHint" style="margin-top:8px">Entre 30 y 300 kg. Actualiza tu IMC y tendencia.</p></div>`;
+ $('#tg7').onclick=()=>{document.getElementById('tg7').classList.add('on');document.getElementById('tg30').classList.remove('on');document.getElementById('chart').innerHTML=chartHTML(7)};
+ $('#tg30').onclick=()=>{document.getElementById('tg30').classList.add('on');document.getElementById('tg7').classList.remove('on');document.getElementById('chart').innerHTML=chartHTML(30)};
+ $('#pesoBtn').onclick=()=>{const inp=document.getElementById('pesoIn'),p=parseFloat(inp.value);if(!isFinite(p)||p<30||p>300){toast('Peso entre 30 y 300 kg');return}registrarPeso(p);inp.value='';progreso();toast('Peso registrado ✅')};
 }
 let camStream=null;
 function cerrarSheet(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}document.body.classList.remove('cam-activa');$('#ov').innerHTML=''}
@@ -342,9 +430,11 @@ $('#f').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)scan(f)};
       .catch(e=>console.warn('PlatoScan: signInAnonymously fallo:',e&&e.message));
   }catch(e){console.warn('PlatoScan: Firebase fallo (modo fallback):',e&&e.message)}
 })();
+seedPesoInicial();
 if(PROF){home()}else{onboarding(false)}
 document.getElementById('fab').onclick=()=>openCam();
 document.getElementById('navhome').onclick=()=>home();
+document.getElementById('navprog').onclick=()=>progreso();
 document.getElementById('navperfil').onclick=()=>onboarding(true);
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
