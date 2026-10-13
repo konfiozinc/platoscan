@@ -137,13 +137,16 @@ ul.f{list-style:none;padding:0;margin:12px 0}ul.f li{padding:5px 0 5px 26px;posi
 .prog-head img{width:34px;height:34px;border-radius:9px}
 .prog-head h1{font-size:22px;font-weight:800;margin:0}
 .imc-card{background:#fff;border:1px solid #e0e4eb;border-radius:20px;padding:22px 18px;text-align:center;color:#1a2b4a}
-.imc-titulo{font-size:14px;font-weight:700;color:#68718F}
+.imc-titulo{font-size:14px;font-weight:700;color:#68718F;display:flex;align-items:center;justify-content:center;gap:6px}
 .imc-num{font:800 46px 'Baloo 2',sans-serif;line-height:1;margin-top:4px}
 .imc-lbl{font-size:15px;font-weight:700;margin-top:5px}
+.imc-note{font-size:12.5px;color:#68718F;line-height:1.45;margin:12px auto 0;max-width:260px}
+.imc-help{border:1px solid var(--line);border-radius:50%;width:18px;height:18px;font:700 12px 'DM Sans',sans-serif;color:#68718F;background:transparent;cursor:pointer;padding:0;line-height:1;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.imc-help:focus-visible{outline:3px solid var(--aji);outline-offset:2px}
 .imc-bar{position:relative;height:10px;border-radius:99px;margin:24px 0 6px;background:linear-gradient(90deg,#3b82f6 0%,#3b82f6 10.42%,#10b981 10.42%,#10b981 37.5%,#f59e0b 37.5%,#f59e0b 58.33%,#ef4444 58.33%,#ef4444 100%)}
 .imc-dot{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:#fff;border:4px solid #1a2b4a;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .imc-ticks{position:relative;height:18px}
-.imc-ticks span{position:absolute;top:0;font-size:11px;font-weight:600;color:#68718F}
+.imc-ticks span{position:absolute;top:0;font-size:11px;font-weight:600;color:#68718F;transform:translateX(-50%);white-space:nowrap}
 .tog{display:inline-flex;background:#eef1f8;border-radius:99px;padding:3px}
 .tog button{border:0;background:transparent;border-radius:99px;padding:7px 15px;font:700 13px 'DM Sans',sans-serif;color:#68718F;cursor:pointer}
 .tog button.on{background:#fff;color:#1a2b4a;box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -202,7 +205,7 @@ function registrarPeso(peso){
   if(PROF){PROF.peso=peso;saveProf()}       // mantener perfil sincronizado
 }
 function seedPesoInicial(){if(!PESOS.length&&PROF&&PROF.peso){PESOS.push({fecha:ldate(),peso:PROF.peso});savePesos()}}
-const clsIMC=v=>v<18.5?{l:'Bajo peso',c:'#3b82f6'}:v<25?{l:'Saludable',c:'#10b981'}:v<30?{l:'Sobrepeso',c:'#f59e0b'}:{l:'Obesidad',c:'#ef4444'};
+const clsIMC=v=>v<18.5?{l:'Un poco por debajo',c:'#3b82f6'}:v<25?{l:'En rango saludable',c:'#10b981'}:v<30?{l:'Un poco por encima',c:'#f59e0b'}:{l:'Bastante por encima',c:'#ef4444'};
 /* ===== Fase 2: historial persistido (clave platoscan-scans) ===== */
 const SCANS_KEY='platoscan-scans';
 function loadScans(){try{const a=JSON.parse(localStorage.getItem(SCANS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
@@ -285,7 +288,7 @@ function chartHTML(dias){
  const ini=new Date(fin);ini.setDate(ini.getDate()-(dias-1));
  const w=320,h=180,pl=34,pr=12,pt=16,pb=30,plotW=w-pl-pr,plotH=h-pt-pb;
  const win=PESOS.filter(p=>{const d=new Date(p.fecha+'T00:00:00');return d>=ini&&d<=fin});
- if(win.length<2)return `<div class="empty-peso"><span class="ico">📈</span>Registra más pesos para ver tu tendencia</div>`;
+ if(win.length<2)return `<div class="empty-peso"><span class="ico">📊</span><b style="color:#1a2b4a">Tu progreso aparecerá aquí</b><p class="mut" style="margin:8px 0 14px">Registra tu peso cada día para ver cómo evolucionas.</p><button class="btn maiz" id="emptyPesoBtn" type="button">Registrar mi peso ahora</button></div>`;
  const vals=win.map(p=>p.peso),min=Math.min(...vals)-1,max=Math.max(...vals)+1;
  const x=p=>pl+plotW*(1-(fin-new Date(p.fecha+'T00:00:00'))/86400000/(dias-1));
  const y=v=>pt+plotH*(1-(v-min)/(max-min));
@@ -314,12 +317,13 @@ function progreso(){
  const v=imc();
  let imcHTML;
  if(v==null){
-  imcHTML=`<div class="imc-card"><div class="imc-titulo">Tu IMC</div><p class="mut" style="margin:14px 0">Completa tu perfil para calcular tu IMC.</p><button class="btn maiz" onclick="onboarding(true)">Completar perfil</button></div>`;
+  imcHTML=`<div class="imc-card"><div class="imc-titulo">Tu IMC <button class="imc-help" id="imcHelp" type="button" aria-label="¿Qué es el IMC?">ⓘ</button></div><p class="mut" style="margin:14px 0">Completa tu perfil para calcular tu IMC.</p><button class="btn maiz" onclick="onboarding(true)">Completar perfil</button></div>`;
  }else{
   const c=clsIMC(v),pos=Math.max(0,Math.min(100,(v-16)/24*100));
-  imcHTML=`<div class="imc-card"><div class="imc-titulo">Tu IMC</div><div class="imc-num">${v.toFixed(1)}</div><div class="imc-lbl" style="color:${c.c}">${c.l}</div>
+  imcHTML=`<div class="imc-card"><div class="imc-titulo">Tu IMC <button class="imc-help" id="imcHelp" type="button" aria-label="¿Qué es el IMC?">ⓘ</button></div><div class="imc-num">${v.toFixed(1)}</div><div class="imc-lbl" style="color:${c.c}">${c.l}</div>
+  <p class="imc-note">El IMC indica si tu peso está bien para tu altura. Un valor entre 18.5 y 25 es saludable.</p>
   <div class="imc-bar"><div class="imc-dot" style="left:${pos}%"></div></div>
-  <div class="imc-ticks"><span style="left:0%">16</span><span style="left:${(18.5-16)/24*100}%">18.5</span><span style="left:${(25-16)/24*100}%">25</span><span style="left:${(30-16)/24*100}%">30</span><span style="left:100%">40</span></div></div>`;
+  <div class="imc-ticks"><span style="left:5.2%">Bajo</span><span style="left:24%">Saludable</span><span style="left:47.9%">Sobre</span><span style="left:79.2%">Alto</span></div></div>`;
  }
  $('#app').innerHTML=`<div class="prog-head"><img src="icons/icon-192.webp" alt="PlatoScan"><h1>Progreso</h1></div>${imcHTML}
  <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Tendencia de peso</b><div class="tog" role="tablist" aria-label="Rango del gráfico"><button class="on" id="tg7" type="button">7 días</button><button id="tg30" type="button">30 días</button></div></div><div id="chart" style="margin-top:12px">${chartHTML(7)}</div><div style="margin-top:8px">${deltaBadge()}</div></div>
@@ -327,6 +331,8 @@ function progreso(){
  $('#tg7').onclick=()=>{document.getElementById('tg7').classList.add('on');document.getElementById('tg30').classList.remove('on');document.getElementById('chart').innerHTML=chartHTML(7)};
  $('#tg30').onclick=()=>{document.getElementById('tg30').classList.add('on');document.getElementById('tg7').classList.remove('on');document.getElementById('chart').innerHTML=chartHTML(30)};
  $('#pesoBtn').onclick=()=>{const inp=document.getElementById('pesoIn'),p=parseFloat(inp.value);if(!isFinite(p)||p<30||p>300){toast('Peso entre 30 y 300 kg');return}registrarPeso(p);inp.value='';progreso();toast('Peso registrado ✅')};
+ const help=$('#imcHelp');if(help)help.onclick=()=>sheet(`<h2 style="font-size:22px">¿Qué es el IMC?</h2><p class="mut" style="line-height:1.55">El Índice de Masa Corporal (IMC) relaciona tu peso con tu altura. Es una guía orientativa, no un diagnóstico médico. Consulta a un profesional para una evaluación personalizada.</p><button class="btn maiz" onclick="cerrarSheet()">Entendido</button>`);
+ const eb=$('#emptyPesoBtn');if(eb)eb.onclick=()=>{document.getElementById('pesoIn').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('pesoIn').focus({preventScroll:true})};
 }
 let camStream=null;
 function cerrarSheet(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}document.body.classList.remove('cam-activa');$('#ov').innerHTML=''}
